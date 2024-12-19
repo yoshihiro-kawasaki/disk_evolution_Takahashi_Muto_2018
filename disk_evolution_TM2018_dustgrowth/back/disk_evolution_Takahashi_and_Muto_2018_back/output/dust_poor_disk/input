@@ -1,0 +1,21 @@
+outdir = output/dust_poor_disk
+
+# disk params
+nr      = 150                     # number of radial cells
+rmin    = 1.0e0                   # minimum (inner) radius [au]
+rmax    = 1.0e4                   # maximum (outer) radius [au]
+spacing = log
+
+alpha_turb = 1.0e-2              # turbulence alpha parameter
+c_wind     = 1.0e-5              # strength of disk wind
+St         = 1.0e0              # Stokes number of dust
+fdg        = 1.0e-2              # dust to gas mass ratio
+
+# cloud params
+nshells  = 50000                 # number of cloud shells
+n_center = 3.0e5                 # central number density of cloud [cm^-3]
+Tc = 10.0                        # cloud temperature
+omega_c = 1.0e-14                # cloud angular frequency [s^-1]
+fc = 1.4                         # density factor to promote gravitational collapse takahashi et al 2013
+Mc = 1.5                         # total cloud mass [solar mass]
+Ms_init = 0.01                   # initial star mass [solar mass]

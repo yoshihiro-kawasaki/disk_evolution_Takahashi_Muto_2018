@@ -1,0 +1,23 @@
+# outdir = output/St1em2
+outdir = /media/kawasaki/ab3d792b-e7b6-4657-bcb1-02d03f3dfef6/disk_evolution_TM2018_2/a3cm
+
+# disk params
+nr      = 150                     # number of radial cells
+rmin    = 1.0e0                   # minimum (inner) radius [au]
+rmax    = 1.0e4                   # maximum (outer) radius [au]
+spacing = log
+
+alpha_turb = 3.0e-4              # turbulent strength
+c_wind     = 1.0e-4              # wind strength
+a          = 3.0e0               # dust size [cm]
+rho_di     = 1.6                 # dust internal density [g/cm^3]
+fdg        = 1.0e-2              # dust to gas mass ratio
+
+# cloud params
+nshells  = 50000                 # number of cloud shells
+n_center = 2.555e5               # central number density of cloud [cm^-3]
+Tc = 10.0                        # cloud temperature
+omega_c = 9.72234e-15            # cloud angular frequency [s^-1]
+fc = 1.4                         # density factor to promote gravitational collapse takahashi et al 2013
+Mc = 1.5                         # total cloud mass [solar mass]
+Ms_init = 0.01                   # initial star mass [solar mass]
