@@ -30,6 +30,7 @@ private:
     SimulationData *pdata_;
 
     array::Double1D Text_;
+    array::Double1D dOmega_dr_;
     array::Double1D Nvis_;
     array::Double1D dNvis_dr_;
     array::Double1D dP_dr_;
@@ -49,9 +50,8 @@ private:
     double mdot_acc_disk_;    // mass accretion rate from disk to star
     double mdot_acc_env_;     // mass accretion rate from envelope to star
     double mdot_acc_total_;   // mdot_acc_disk + mdot_acc_env_
-    double mdot_inf_;
-    double mdot_wind_;
-    double mdot_wind_sweep_;
+    double mdot_inf_;         // infall rate from envelope to disk
+    double mdot_wind_;        // wind mass loss rate from disk
 
     double Ls_;
     double Lacc_;

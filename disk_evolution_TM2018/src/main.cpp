@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     /* BE sphere */
     BonnerEbertSphere *pbes = new BonnerEbertSphere(psim);
     pbes->SetBonnerEbertSphere();
-    // be_sphere.Output("be.txt");
+    pbes->Output("be_sphere.txt");
 
     /* disk evolution driver */
     DiskEvolutionDriver *pded = new DiskEvolutionDriver(psim);
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     long int count = 0;
     bool is_end_infall;
     std::string outfilename;
-    std::string logfile = psim->outdir_ + "log";
+    std::string logfile = psim->outdir_ + "/log";
     std::ofstream logofs;
 
     /* set initial condition */
@@ -54,9 +54,11 @@ int main(int argc, char *argv[])
     FAILED_TO_OPEN(logofs, logfile);
     psim->cloud_.rini_  = pbes->CalculateInitialRinit();
     pbes->CalculateMdotInfall(psim->cloud_.rini_, psim->cloud_.drinidt_, psim->cloud_.mdot_inf_);
-    psim->time_.t_ = std::sqrt(0.5 * CUB(psim->cloud_.rini_) / (cst::GRAVITATIONAL_CONSTANT * psim->star_.mass_init_)) * 2.56717; // 2.56717は圧力勾配力の影響
+    psim->time_.t_ = std::sqrt(0.5 * CUB(psim->cloud_.rini_) / (cst::GRAVITATIONAL_CONSTANT * psim->star_.mass_init_)) * C_TINF;
     tout = psim->time_.t_ + psim->time_.delta_tout_;
+    pded->SetInitialCondtion();
     pded->CalculateDiskQuantities();
+    psim->Show(count);
 
     /*  main integration */
     while (psim->time_.t_ < psim->time_.tend_) {
@@ -83,6 +85,10 @@ int main(int argc, char *argv[])
         // time step (n → n + 1)
         if (pded->CalculateTimeStep(dt) == false) {
             psim->output_count_++;
+            outfilename = psim->outdir_ + "/disk" + std::to_string(psim->output_count_);
+            psim->OutputData(outfilename);
+            psim->LogOutput(psim->output_count_, logofs);
+            std::cout << "error : time step" << std::endl;
             break;
         }
         pbes->CalculateMdotInfall(psim->cloud_.rini_, psim->cloud_.drinidt_, psim->cloud_.mdot_inf_);
@@ -96,7 +102,7 @@ int main(int argc, char *argv[])
             outfilename = psim->outdir_ + "/disk" + std::to_string(psim->output_count_);
             psim->OutputData(outfilename);
             psim->LogOutput(psim->output_count_, logofs);
-            break;
+            // break;
         }
 
         if (psim->time_.t_ >= tout || psim->time_.t_ == psim->time_.tend_) {
@@ -108,16 +114,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    // std::cout << std::scientific;
-    // std::cout << "star mass            = " << (sim.star_.mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total disk gas mass  = " << (sim.gas_.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total disk dust mass = " << (sim.dust_.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total disk mass      = " << (sim.total_disk_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total mass           = " << (sim.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total infall mass    = " << (sim.total_infall_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "wind mass loss       = " << (sim.total_wind_loss_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "m                    = " << ((sim.total_mass_ + sim.total_wind_loss_mass_) / cst::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total count          = " << count << std::endl;
+    psim->Show(count);
 
     logofs.close();
 

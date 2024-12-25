@@ -11,7 +11,6 @@ BonnerEbertSphere::BonnerEbertSphere(SimulationData *pdata)
     : pdata_(pdata)
 {
     double mg = cst::GAS_MOLECULAR_MASS;
-
     number_of_cloud_shells_          = pdata_->cloud_.nshells_;
     central_number_density_of_cloud_ = pdata_->cloud_.nc_;
     central_mass_density_of_cloud_   = mg * central_number_density_of_cloud_;
@@ -67,10 +66,10 @@ void BonnerEbertSphere::SetBonnerEbertSphere()
     double y[2];
     
     // boundary condition
-    psi_[0] = 0.0;
+    psi_[0]     = 0.0;
     dpsidrn_[0] = 0.0;
-    y[0] = psi_[0];
-    y[1] = dpsidrn_[0];
+    y[0]        = psi_[0];
+    y[1]        = dpsidrn_[0];
 
     // integration
     for (int i = 0; i < ibmax_m; ++i) {
@@ -169,8 +168,7 @@ void BonnerEbertSphere::CalculateMdotInfall(const double r_init, double &drinitd
 
     double mr_init  = Utils::LinearInterPolation(r_init, r_bonner_[i1], r_bonner_[i2], mass_bonner_[i1], mass_bonner_[i2]);
     double dmrdr    = 4.0*M_PI*SQR(r_init)*rho_init;
-    double f        = 2.56717;
-    double dtdrinit = f * sqrt(r_init/(2.0*cst::GRAVITATIONAL_CONSTANT*mr_init)) * (1.5 - (0.5*r_init/mr_init)*dmrdr);
+    double dtdrinit = C_TINF * sqrt(r_init/(2.0*cst::GRAVITATIONAL_CONSTANT*mr_init)) * (1.5 - (0.5*r_init/mr_init)*dmrdr);
 
     if (dtdrinit <= 0.0) {
         std::cerr << "BonnerEbertSphere::CalculateDrinitDt error : dtdrinit <= 0.0" << std::endl;
@@ -194,7 +192,7 @@ void BonnerEbertSphere::SolveLaneEmdenEquation(const int n, double &x, const dou
 
     for (int j = 1; j <= 4; ++j) {
         for (int i = 0; i < n; ++i) tmp[i] = y[i] + K[i][j-1]*c[j];
-        tx = x + c[j]*h;
+        tx   = x + c[j]*h;
         f[0] = y[1];
         f[1] = -2.0*y[1]/tx + std::exp(-y[0]);
         for (int i = 0; i < n; ++i) K[i][j] = h * f[i];

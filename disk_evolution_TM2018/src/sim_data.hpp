@@ -10,10 +10,9 @@
 #include <iostream>
 #include <cmath>
 
-
-
-constexpr double SIGMA_GAS_FLOOR  = 1.0e-15;
-constexpr double SIGMA_DUST_FLOOR = 1.0e-15;
+constexpr double C_TINF = 2.567172178745525;  // ctinf.py
+constexpr double SIGMA_GAS_FLOOR  = 1.0e-20;
+constexpr double SIGMA_DUST_FLOOR = 1.0e-20;
 
 // ################################################################################## //
 // ################################################################################## //
@@ -110,8 +109,6 @@ public:
     void SetStar(Utils::InputConfigure &input);
     double mass_init_;    // initial star mass
     double mass_;         // star mass
-    double Ls_;           // star luminosity
-    double Lacc_;         // accretion luminosity
 private:
 };
 
@@ -151,26 +148,22 @@ public:
     std::string outdir_;
     int output_count_;
 
-    double total_disk_mass_;
-    double total_mass_;             // star + disk mass
-    double mdot_acc_disk_;          // 内側境界から流出する量 (mass accretion rate from disk to star)
-    double mdot_acc_env_;           // mass accretion rate from envelope to satr
+    double total_mass_;             // star mass + total disk mass
+    double total_disk_mass_;        // disk gas mass + disk dust mass
+    double mdot_acc_disk_;          // mass accretion rate from disk to star
+    double mdot_acc_env_;           // mass accretion rate from envelope to star
     double mdot_inf_;               // infall rate from envelope to disk
     double total_infall_mass_;
     double mdot_wind_;              // wind mass loss rate from disk
-    double mdot_wind_sweep_;
-    double wind_loss_mass_;
-    double wind_loss_mass_sweep_;
-    double total_wind_loss_mass_;
+    double wind_mass_loss_;
 
     void OutputGrid();
     void OutputData(const std::string filename);
     void LogOutput(const int count, std::ofstream &file);
+    void Show(const long int count);
 
 private:
-
     void Initialization();
-
 };
 
 #endif /* SIM_DATA_HPP */

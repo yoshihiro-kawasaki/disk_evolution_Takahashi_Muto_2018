@@ -78,6 +78,8 @@ void Gas::SetGas(Utils::InputConfigure &input, Grid &grid)
     Sigma_dot_inf_  = array::Allocate1dArray<double>(nrtotc);
     Sigma_dot_wind_ = array::Allocate1dArray<double>(nrtotc);
 
+    total_mass_ = 0.0;
+
     is_allocate_arrays_ = true;
     return;
 }
@@ -120,6 +122,8 @@ void Dust::SetDust(Utils::InputConfigure &input, Grid &grid)
     vr_          = array::Allocate1dArray<double>(nrtotc);
     cvd_         = array::Allocate2dArray<double>(nrtotc, 2);
 
+    total_mass_ = 0.0;
+
     is_allocate_arrays_ = true;
 }
 
@@ -158,6 +162,7 @@ void Time::SetTime(Utils::InputConfigure &input)
     tend_       = input.GetDouble("tend") * cst::SOLAR_YEAR;
     cfl_        = input.GetDouble("cfl");
     delta_tout_ = input.GetDouble("delta_tout") * cst::SOLAR_YEAR;
+    t_          = 0.0;
 }
 
 
@@ -203,11 +208,6 @@ void SimulationData::Initialization()
     mdot_inf_             = 0.0;
     total_infall_mass_    = star_.mass_;
     mdot_wind_            = 0.0;
-    mdot_wind_sweep_      = 0.0;
-    wind_loss_mass_       = 0.0;
-    wind_loss_mass_sweep_ = 0.0;
-    total_wind_loss_mass_ = 0.0;
-
     return;
 }
 
@@ -252,10 +252,8 @@ void SimulationData::OutputData(std::string filename)
     std::ofstream file(filename, std::ios::trunc | std::ios::out | std::ios::binary);
     FAILED_TO_OPEN(file, filename);
 
-    file.write((char*)&time_, sizeof(double));
+    file.write((char*)&(time_.t_), sizeof(double));
     file.write((char*)&(star_.mass_), sizeof(double));
-    file.write((char*)&(star_.Ls_), sizeof(double));
-    file.write((char*)&(star_.Lacc_), sizeof(double));
     file.write((char*)&(gas_.total_mass_), sizeof(double));
     file.write((char*)&(dust_.total_mass_), sizeof(double));
     file.write((char*)&(total_mass_), sizeof(double));
@@ -264,10 +262,7 @@ void SimulationData::OutputData(std::string filename)
     file.write((char*)&(mdot_inf_), sizeof(double));
     file.write((char*)&(total_infall_mass_), sizeof(double));
     file.write((char*)&(mdot_wind_), sizeof(double));
-    file.write((char*)&(mdot_wind_sweep_), sizeof(double));
-    file.write((char*)&(wind_loss_mass_), sizeof(double));
-    file.write((char*)&(wind_loss_mass_sweep_), sizeof(double));
-    file.write((char*)&(total_wind_loss_mass_), sizeof(double));
+    file.write((char*)&(wind_mass_loss_), sizeof(double));
 
     for (int i = is; i < ie; ++i) {
         file.write((char*)&(grid_.r_cen_[i]), sizeof(double));
@@ -365,8 +360,6 @@ void SimulationData::LogOutput(const int count, std::ofstream &file)
          << std::setw(10) << count << " "
          << time_.t_ << " "
          << star_.mass_ << " "
-         << star_.Ls_ << " "
-         << star_.Lacc_ << " "
          << gas_.total_mass_ << " "
          << dust_.total_mass_ << " "
          << total_mass_ << " "
@@ -375,11 +368,25 @@ void SimulationData::LogOutput(const int count, std::ofstream &file)
          << mdot_inf_ << " "
          << total_infall_mass_ << " "
          << mdot_wind_ << " "
-         << mdot_wind_sweep_ << " "
-         << wind_loss_mass_ << " "
-         << wind_loss_mass_sweep_ << " "
-         << total_wind_loss_mass_ << " "
+         << wind_mass_loss_
          << std::endl;
 
+    return;
+}
+
+
+void SimulationData::Show(const long int count)
+{
+    std::cout << std::scientific; // << std::setprecision(15);
+
+    std::cout << "total count          = " << count << std::endl;
+    std::cout << "star mass            = " << (star_.mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "total disk gas mass  = " << (gas_.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "total disk dust mass = " << (dust_.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "total disk mass      = " << (total_disk_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "total mass           = " << (total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "total infall mass    = " << (total_infall_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "wind mass loss       = " << (wind_mass_loss_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    std::cout << "m                    = " << ((total_mass_ + wind_mass_loss_) / cst::SOLAR_MASS) << " solar mass" << std::endl;
     return;
 }

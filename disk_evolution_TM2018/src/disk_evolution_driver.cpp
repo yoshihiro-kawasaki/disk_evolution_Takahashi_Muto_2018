@@ -1,10 +1,8 @@
 /*
 円盤進化計算
 円盤内の物理量の時間発展を計算するクラスの実装
-
-ガスとダストの速度はTakahashi & Muto 2018 を用いている。void DiskEvolution::CalculateDiskGasParamtersを参照。
-
-2023/07/23 作成。
+ガスとダストの速度はTakahashi & Muto 2018 を用いている。
+2024/12/25 作成。
 */
 
 
@@ -13,12 +11,11 @@
 DiskEvolutionDriver::DiskEvolutionDriver(SimulationData *pdata)
     : pdata_(pdata)
 {
-    // prc_ = new Reconstruction(pdata);
-
     int nrtotc = pdata_->grid_.nrtotc_;
     int nrtotb = pdata_->grid_.nrtotb_;
 
     Text_          = array::Allocate1dArray<double>(nrtotc);
+    dOmega_dr_     = array::Allocate1dArray<double>(nrtotc);
     Nvis_          = array::Allocate1dArray<double>(nrtotc);
     dNvis_dr_      = array::Allocate1dArray<double>(nrtotc);
     dP_dr_         = array::Allocate1dArray<double>(nrtotc);
@@ -45,6 +42,7 @@ DiskEvolutionDriver::~DiskEvolutionDriver()
 {
     if (is_allocate_arrays_) {
         array::Delete1dArray<double>(Text_);
+        array::Delete1dArray<double>(dOmega_dr_);
         array::Delete1dArray<double>(Nvis_);
         array::Delete1dArray<double>(dNvis_dr_);
         array::Delete1dArray<double>(dP_dr_);
@@ -65,13 +63,14 @@ DiskEvolutionDriver::~DiskEvolutionDriver()
 
 void DiskEvolutionDriver::SetInitialCondtion()
 {
-    int is = pdata_->grid_.is_, ie = pdata_->grid_.ie_;
+    int is = pdata_->grid_.is_, 
+        ie = pdata_->grid_.ie_;
     double temp;
     for (int i = is; i < ie; ++i) {
         pdata_->gas_.Sigma_[i]        = 0.0;
-        pdata_->gas_.Sigma_floor_[i]  = 1.0e-20;
+        pdata_->gas_.Sigma_floor_[i]  = SIGMA_GAS_FLOOR;
         pdata_->dust_.Sigma_[i]       = 0.0;
-        pdata_->dust_.Sigma_floor_[i] = 1.0e-20;
+        pdata_->dust_.Sigma_floor_[i] = SIGMA_DUST_FLOOR;
         temp                          = 1.5e2 * std::pow(pdata_->grid_.r_cen_[i]/cst::ASTRONOMICAL_UNIT, -0.42857142857142855);
         Text_[i]                      = std::max(temp, 10.0);
     }
@@ -81,6 +80,11 @@ void DiskEvolutionDriver::SetInitialCondtion()
 
 void DiskEvolutionDriver::CalculateDiskQuantities()
 {
+    CalculateEnclosedMassAndAngularVelocity();
+    CalculateDiskGasQuantities();
+    CalculateGasDustDragCoefficient();
+    CalculateInfallAndWindRate();
+    CalculateGasAndDustVelocity();
     return;
 }
 
@@ -92,15 +96,14 @@ void DiskEvolutionDriver::CalculateEnclosedMassAndAngularVelocity()
 
     pdata_->gas_.Mr_bnd_[is-1] = pdata_->star_.mass_;
     pdata_->gas_.Mr_bnd_[is]   = pdata_->star_.mass_;
-    for (int i = is+1; i <= ie; ++i) {
-        pdata_->gas_.Mr_bnd_[i] = pdata_->gas_.Mr_bnd_[i-1] + pdata_->grid_.r_vol_[i-1] * pdata_->gas_.Sigma_[i-1];
-    }
+    for (int i = is+1; i <= ie; ++i) pdata_->gas_.Mr_bnd_[i] = pdata_->gas_.Mr_bnd_[i-1] + pdata_->grid_.r_vol_[i-1] * pdata_->gas_.Sigma_[i-1];
     pdata_->gas_.Mr_bnd_[ie+1] = pdata_->gas_.Mr_bnd_[ie];
 
     for (int i = is-1; i <= ie; ++i) {
         pdata_->gas_.Mr_cen_[i] = std::sqrt(pdata_->gas_.Mr_bnd_[i+1] * pdata_->gas_.Mr_bnd_[i]);
         pdata_->gas_.Omega_[i]  = std::sqrt(cst::GRAVITATIONAL_CONSTANT*pdata_->gas_.Mr_cen_[i]*CUB(pdata_->grid_.inv_r_cen_[i]));
         pdata_->gas_.j_[i]      = SQR(pdata_->grid_.r_cen_[i]) * pdata_->gas_.Omega_[i];
+        dOmega_dr_[i]           = pdata_->gas_.Omega_[i] * (M_PI*pdata_->grid_.r_cen_[i]*pdata_->gas_.Sigma_[i]/pdata_->gas_.Mr_cen_[i] - 1.5*pdata_->grid_.inv_r_cen_[i]);
     }
 
     return;
@@ -139,8 +142,7 @@ void DiskEvolutionDriver::CalculateDiskGasQuantities()
         alpha_GI                 = std::exp(-SQR(pdata_->gas_.Qt_[i])*SQR(pdata_->gas_.Qt_[i]));
         pdata_->gas_.alpha_[i]   = alpha_GI + pdata_->gas_.alpha_turb_;
         nu                       = pdata_->gas_.alpha_[i] * pdata_->gas_.cs_[i] * pdata_->gas_.Hg_[i];
-        dOmegadr                 = pdata_->gas_.Omega_[i] * (M_PI*pdata_->grid_.r_cen_[i]*pdata_->gas_.Sigma_[i] / pdata_->gas_.Mr_cen_[i] - 1.5*pdata_->grid_.inv_r_cen_[i]);
-        Nvis_[i]                 = CUB(pdata_->grid_.r_cen_[i]) * nu * pdata_->gas_.Sigma_[i] * dOmegadr;
+        Nvis_[i]                 = CUB(pdata_->grid_.r_cen_[i]) * nu * pdata_->gas_.Sigma_[i] * dOmega_dr_[i];
     }
 
     return;
@@ -155,7 +157,7 @@ void DiskEvolutionDriver::CalculateGasDustDragCoefficient()
 
     for (int i = is; i < ie; ++i) {
 
-        if (pdata_->gas_.Sigma_[i] < SIGMA_GAS_FLOOR || pdata_->dust_.Sigma_[i] < SIGMA_DUST_FLOOR) {
+        if (pdata_->gas_.Sigma_[i] < SIGMA_GAS_FLOOR) {
             pdata_->gas_.cvg_[i][0]  = 0.0;
             pdata_->gas_.cvg_[i][1]  = 0.0;
             pdata_->dust_.cvd_[i][0] = 0.0;
@@ -221,12 +223,11 @@ void DiskEvolutionDriver::CalculateGasAndDustVelocity()
         ie = pdata_->grid_.ie_;
 
     // calculate gradient
-    Nvis_[is-1]         = (Nvis_[is] * pdata_->grid_.inv_r_cen_[is]) * pdata_->grid_.r_cen_[is-1];
-    pdata_->gas_.P_[is-1] = pdata_->gas_.P_[is] 
-        + ((pdata_->gas_.P_[is+1] - pdata_->gas_.P_[is]) * pdata_->grid_.inv_dr_cen_[is]) * (pdata_->grid_.r_cen_[is-1] - pdata_->grid_.r_cen_[is]);
+    Nvis_[is-1]           = (Nvis_[is] * pdata_->grid_.inv_r_cen_[is]) * pdata_->grid_.r_cen_[is-1];
+    pdata_->gas_.P_[is-1] = pdata_->gas_.P_[is] + ((pdata_->gas_.P_[is+1] - pdata_->gas_.P_[is]) * pdata_->grid_.inv_dr_cen_[is]) * (pdata_->grid_.r_cen_[is-1] - pdata_->grid_.r_cen_[is]);
     pdata_->grid_.CalculateNumericalDifferentiation(Nvis_, dNvis_dr_);
     pdata_->grid_.CalculateNumericalDifferentiation(pdata_->gas_.P_, dP_dr_);
-    pdata_->grid_.CalculateNumericalDifferentiation(pdata_->gas_.P_integ_, dPinteg_dr_);
+    // pdata_->grid_.CalculateNumericalDifferentiation(pdata_->gas_.P_integ_, dPinteg_dr_);
 
     // calculate velocity
     double dlnP_dlnr, eta, mdot_tot_r;
@@ -251,14 +252,8 @@ void DiskEvolutionDriver::CalculateGasAndDustVelocity()
         pdata_->gas_.vr_src_[i] = - pdata_->grid_.r_cen_[i] * mdot_tot_r / pdata_->gas_.Mr_cen_[i];
 
         // total radial velocity
-        pdata_->gas_.vr_[i]  = pdata_->gas_.cvg_[i][0]*pdata_->gas_.vr_vis_[i]  
-                               + pdata_->gas_.cvg_[i][1]*pdata_->gas_.vr_eta_[i]  
-                               + pdata_->gas_.vr_src_[i];
-
-        pdata_->dust_.vr_[i] = pdata_->dust_.cvd_[i][0]*pdata_->gas_.vr_vis_[i]  
-                               + pdata_->dust_.cvd_[i][1]*pdata_->gas_.vr_eta_[i]  
-                               + pdata_->gas_.vr_src_[i];
-
+        pdata_->gas_.vr_[i]  = pdata_->gas_.cvg_[i][0]*pdata_->gas_.vr_vis_[i]  + pdata_->gas_.cvg_[i][1]*pdata_->gas_.vr_eta_[i]  + pdata_->gas_.vr_src_[i];
+        pdata_->dust_.vr_[i] = pdata_->dust_.cvd_[i][0]*pdata_->gas_.vr_vis_[i] + pdata_->dust_.cvd_[i][1]*pdata_->gas_.vr_eta_[i] + pdata_->gas_.vr_src_[i];
     }
 
     return;
@@ -273,11 +268,10 @@ void DiskEvolutionDriver::CalculateFlux()
     double rb_rc, m, vgr_bnd, vdr_bnd;
 
     // zero gradient at boudaries
-    pdata_->gas_.vr_[is-1]   = pdata_->gas_.vr_[is]; 
-    pdata_->dust_.vr_[is-1]  = pdata_->dust_.vr_[is];
-
-    pdata_->gas_.vr_[ie]   = pdata_->gas_.vr_[ie-1];
-    pdata_->dust_.vr_[ie]  = pdata_->dust_.vr_[ie-1];
+    pdata_->gas_.vr_[is-1]  = pdata_->gas_.vr_[is]; 
+    pdata_->dust_.vr_[is-1] = pdata_->dust_.vr_[is];
+    pdata_->gas_.vr_[ie]    = pdata_->gas_.vr_[ie-1];
+    pdata_->dust_.vr_[ie]   = pdata_->dust_.vr_[ie-1];
 
     for (int i = is; i <= ie; ++i) {
 
@@ -289,16 +283,15 @@ void DiskEvolutionDriver::CalculateFlux()
 
         if (vgr_bnd >= 0.0) {
             if (i == is) {
-                flux_gas_[i]        = 0.0;
+                flux_gas_[i] = 0.0;
             } else {
-                flux_gas_[i]        = pdata_->gas_.Sigma_[i-1] * vgr_bnd;
-               
+                flux_gas_[i] = pdata_->gas_.Sigma_[i-1] * vgr_bnd;
             }
         } else {
             if (i == ie) {
-                flux_gas_[i]        = 0.0;
+                flux_gas_[i] = 0.0;
             } else {
-                flux_gas_[i]        = pdata_->gas_.Sigma_[i] * vgr_bnd;
+                flux_gas_[i] = pdata_->gas_.Sigma_[i] * vgr_bnd;
             }
         }
 
@@ -330,11 +323,11 @@ double DiskEvolutionDriver::CalculateDtMin()
 {
     int is = pdata_->grid_.is_, 
         ie = pdata_->grid_.ie_;
-    double dt_temp, inv_dV, dSdt_gas_adv, dSdt_gas_src, dSdt_dust_adv, dSdt_dust_src, dSdt_vapor_adv, dSdt_vapor_src, dEdt_adv, dEdt_src;
-
-    dt_temp  = 1.0e100;
+    double dt_temp, inv_dV, dSdt_gas_adv, dSdt_gas_src, dSdt_dust_adv, dSdt_dust_src;
 
     CalculateFlux();
+
+    dt_temp  = 1.0e100;
 
     for (int i = is; i < ie; ++i) {
 
@@ -346,7 +339,6 @@ double DiskEvolutionDriver::CalculateDtMin()
         dSdt_gas_[i] = dSdt_gas_adv + dSdt_gas_src;
 
         if (pdata_->gas_.vr_[i] != 0.0 && pdata_->gas_.Sigma_[i] > SIGMA_GAS_FLOOR) {
-            // dt_temp = std::min(dt_temp, pdata_->grid_.dr_bnd_[i] / (std::abs(pdata_->gas_.vr_[i]) + pdata_->gas_.cs_[i] ) );
             dt_temp = std::min(dt_temp, pdata_->grid_.dr_bnd_[i] / std::abs(pdata_->gas_.vr_[i]));
         }
         dt_temp = std::min(dt_temp, 1.0/pdata_->gas_.Omega_[i]);
@@ -367,7 +359,6 @@ double DiskEvolutionDriver::CalculateDtMin()
         if (dSdt_dust_src != 0.0 && pdata_->dust_.Sigma_[i] > SIGMA_DUST_FLOOR) {
             dt_temp = std::min(dt_temp, std::abs(pdata_->dust_.Sigma_[i]/dSdt_dust_src));
         }
-
     }
 
     mdot_acc_disk_  = - 2.0*M_PI*pdata_->grid_.r_bnd_[is]*(flux_gas_[is] + flux_dust_[is]);
@@ -382,7 +373,7 @@ bool DiskEvolutionDriver::CalculateTimeStep(double dt)
 {
     int is = pdata_->grid_.is_, 
         ie = pdata_->grid_.ie_;
-    double sigmag_tot, sigmad_tot, dV, mS;
+    double sigmag_tot, sigmad_tot, dV;
 
     sigmag_tot = 0.0;
     sigmad_tot = 0.0;
@@ -397,15 +388,11 @@ bool DiskEvolutionDriver::CalculateTimeStep(double dt)
     }
 
     // boundary condition (ghost cell)
-    // pdata_->gas_.Sigma_[is-1] = pdata_->gas_.Sigma_[is];
-    // pdata_->gas_.Sigma_(is-2) = pdata_->gas_.Sigma_[is+1];
-
-    // constant power law boudary condition for surface density
-    // mS = (std::log(pdata_->gas_.Sigma_[is+1]) - std::log(pdata_->gas_.Sigma_[is])) / (std::log(pdata_->grid_.r_cen_[is+1]) - std::log(pdata_->grid_.r_cen_[is]));
-    // pdata_->gas_.Sigma_[is-1] = pdata_->gas_.Sigma_[is] * std::pow(pdata_->grid_.r_cen_[is-1]*pdata_->grid_.inv_r_cen_[is], mS);
+    // pdata_->gas_.Sigma_[is-1]  = pdata_->gas_.Sigma_[is];
+    // pdata_->dust_.Sigma_[is-1] = pdata_->dust_.Sigma_[is];
 
     // time step
-    pdata_->time_.t_ += dt;
+    pdata_->time_.t_     += dt;
     pdata_->cloud_.rini_ += pdata_->cloud_.drinidt_*dt;
 
     // update others
@@ -419,10 +406,7 @@ bool DiskEvolutionDriver::CalculateTimeStep(double dt)
     pdata_->mdot_inf_              = mdot_inf_;
     pdata_->total_infall_mass_    += mdot_inf_r_[ie] * dt;
     pdata_->mdot_wind_             = mdot_wind_;
-    pdata_->mdot_wind_sweep_       = mdot_wind_sweep_;
-    pdata_->wind_loss_mass_       += mdot_wind_ * dt;
-    pdata_->wind_loss_mass_sweep_ += mdot_wind_sweep_ * dt;
-    pdata_->total_wind_loss_mass_ += (mdot_wind_ + mdot_wind_sweep_) * dt;
+    pdata_->wind_mass_loss_       += mdot_wind_ * dt;
 
     return true;
 }
