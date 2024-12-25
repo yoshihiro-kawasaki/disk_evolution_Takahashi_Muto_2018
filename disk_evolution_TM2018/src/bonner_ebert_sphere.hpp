@@ -4,7 +4,6 @@
 #include "array.hpp"
 #include "constants.hpp"
 #include "define_macro.hpp"
-#include "explicit_solver/explicit_solver.hpp"
 #include "sim_data.hpp"
 
 class BonnerEbertSphere

@@ -79,6 +79,11 @@ void DiskEvolutionDriver::SetInitialCondtion()
     return;
 }
 
+void DiskEvolutionDriver::CalculateDiskQuantities()
+{
+    return;
+}
+
 
 void DiskEvolutionDriver::CalculateEnclosedMassAndAngularVelocity()
 {
@@ -125,12 +130,12 @@ void DiskEvolutionDriver::CalculateDiskGasQuantities()
         }
 
         pdata_->gas_.T_[i]       = Text_[i];
-        pdata_->gas_.cs_[i]      = std::sqrt(pc::BOLTZMANN_CONSTANT * pdata_->gas_.T_[i] * cst::INV_MG);
+        pdata_->gas_.cs_[i]      = std::sqrt(cst::BOLTZMANN_CONSTANT * pdata_->gas_.T_[i] * cst::INV_MG);
         pdata_->gas_.Hg_[i]      = pdata_->gas_.cs_[i] / pdata_->gas_.Omega_[i];
         pdata_->gas_.rho_mid_[i] = pdata_->gas_.Sigma_[i] / (cst::SQRT_2PI * pdata_->gas_.Hg_[i]);
         pdata_->gas_.P_[i]       = SQR(pdata_->gas_.cs_[i]) * pdata_->gas_.rho_mid_[i];
         pdata_->gas_.P_integ_[i] = SQR(pdata_->gas_.cs_[i]) * pdata_->gas_.Sigma_[i];
-        pdata_->gas_.Qt_[i]      = pdata_->gas_.Omega_[i] * pdata_->gas_.cs_[i] / (M_PI * pc::GRAVITATIONAL_CONSTANT * pdata_->gas_.Sigma_[i]);
+        pdata_->gas_.Qt_[i]      = pdata_->gas_.Omega_[i] * pdata_->gas_.cs_[i] / (M_PI * cst::GRAVITATIONAL_CONSTANT * pdata_->gas_.Sigma_[i]);
         alpha_GI                 = std::exp(-SQR(pdata_->gas_.Qt_[i])*SQR(pdata_->gas_.Qt_[i]));
         pdata_->gas_.alpha_[i]   = alpha_GI + pdata_->gas_.alpha_turb_;
         nu                       = pdata_->gas_.alpha_[i] * pdata_->gas_.cs_[i] * pdata_->gas_.Hg_[i];
@@ -188,7 +193,7 @@ void DiskEvolutionDriver::CalculateInfallAndWindRate()
         for (int i = is; i <= ie; ++i) mdot_inf_r_[i] = 0.0;
     } else {
         for (int i = is; i <= ie; ++i) {
-            j = std::sqrt(pc::GRAVITATIONAL_CONSTANT*pdata_->gas_.Mr_bnd_[i]*pdata_->grid_.r_bnd_[i]);
+            j = std::sqrt(cst::GRAVITATIONAL_CONSTANT*pdata_->gas_.Mr_bnd_[i]*pdata_->grid_.r_bnd_[i]);
             if (j <= j_core) {
                 mdot_inf_r_[i] = mdot_inf_ * (1.0 - std::sqrt(1.0 - j*inv_j_core));
             } else {

@@ -4,8 +4,7 @@
 #include "array.hpp"
 #include "define_macro.hpp"
 #include "sim_data.hpp"
-#include "opacity.hpp"
-#include "reconstruction.hpp"
+#include "constants.hpp"
 
 class DiskEvolutionDriver
 {

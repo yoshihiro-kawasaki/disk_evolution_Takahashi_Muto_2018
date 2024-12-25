@@ -1,5 +1,5 @@
 #include "array.hpp"
-#include "physical_constants.hpp"
+#include "constants.hpp"
 #include "sim_data.hpp"
 #include "disk_evolution_driver.hpp"
 #include "bonner_ebert_sphere.hpp"
@@ -16,8 +16,7 @@ int main(int argc, char *argv[])
     start = std::chrono::system_clock::now();
 
     std::string input_file;
-    if (argc != 2)
-    {
+    if (argc != 2) {
         std::cerr << "# ERROR : main, no input file" << std::endl;
         std::exit(1);
     }
@@ -78,7 +77,7 @@ int main(int argc, char *argv[])
         if ((psim->time_.tend_ - psim->time_.t_) < dt) dt = psim->time_.tend_ - psim->time_.t_;
 
         if (count % 200000 == 0) {
-            std::cout << count << " " << (dt / pc::SOLAR_YEAR) << " " << (psim->time_.t_ / pc::SOLAR_YEAR) << std::endl;
+            std::cout << count << " " << (dt / cst::SOLAR_YEAR) << " " << (psim->time_.t_ / cst::SOLAR_YEAR) << std::endl;
         }
 
         // time step (n → n + 1)
@@ -110,14 +109,14 @@ int main(int argc, char *argv[])
     }
 
     // std::cout << std::scientific;
-    // std::cout << "star mass            = " << (sim.star_.mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total disk gas mass  = " << (sim.gas_.total_mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total disk dust mass = " << (sim.dust_.total_mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total disk mass      = " << (sim.total_disk_mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total mass           = " << (sim.total_mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "total infall mass    = " << (sim.total_infall_mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "wind mass loss       = " << (sim.total_wind_loss_mass_ / pc::SOLAR_MASS) << " solar mass" << std::endl;
-    // std::cout << "m                    = " << ((sim.total_mass_ + sim.total_wind_loss_mass_) / pc::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "star mass            = " << (sim.star_.mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "total disk gas mass  = " << (sim.gas_.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "total disk dust mass = " << (sim.dust_.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "total disk mass      = " << (sim.total_disk_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "total mass           = " << (sim.total_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "total infall mass    = " << (sim.total_infall_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "wind mass loss       = " << (sim.total_wind_loss_mass_ / cst::SOLAR_MASS) << " solar mass" << std::endl;
+    // std::cout << "m                    = " << ((sim.total_mass_ + sim.total_wind_loss_mass_) / cst::SOLAR_MASS) << " solar mass" << std::endl;
     // std::cout << "total count          = " << count << std::endl;
 
     logofs.close();
