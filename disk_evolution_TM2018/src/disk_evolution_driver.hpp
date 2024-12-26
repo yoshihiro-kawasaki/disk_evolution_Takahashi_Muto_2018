@@ -52,9 +52,6 @@ private:
     double mdot_acc_total_;   // mdot_acc_disk + mdot_acc_env_
     double mdot_inf_;         // infall rate from envelope to disk
     double mdot_wind_;        // wind mass loss rate from disk
-
-    double Ls_;
-    double Lacc_;
 };
 
 #endif /* DISK_EVOLUTION_HPP_ */
