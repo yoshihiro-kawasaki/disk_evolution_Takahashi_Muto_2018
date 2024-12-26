@@ -67,15 +67,15 @@ public:
 
     void SetDust(Utils::InputConfigure &input, Grid &grid);
 
-    array::Double1D Sigma_;         // dust surface density
-    array::Double1D Sigma_floor_;   // floor value of dust surface density
-    array::Double1D vr_;            // dust radial velocity
+    array::Double1D Sigma_;         // dust surface density [g cm^-2]
+    array::Double1D Sigma_floor_;   // floor value of dust surface density [g cm^-2]
+    array::Double1D vr_;            // dust radial velocity [cm s^-1]
     array::Double2D cvd_;           // dust velocity coefficient by gas and dust interaction
     array::Double1D St_;            // Stokes number
-    double ad_;                      // dust size
-    double rho_di_;                 // dust internal density 
+    double ad_;                     // dust size [cm]
+    double rho_di_;                 // dust internal density [g cm^-3]
     double fdg_;                    // dust to gas mass ratio in envelope
-    double total_mass_;             // total disk dust mass
+    double total_mass_;             // total disk dust mass [g]
 private:
     bool is_allocate_arrays_;
 };
@@ -89,15 +89,14 @@ class Cloud
 public:
     void SetCloud(Utils::InputConfigure &input);
     int nshells_;      // number of cloud shells
-    double nc_;        // central number density
-    double T_;         // temperature
-    double Omega_c_;   // angular velocity
+    double nc_;        // central number density [cm^-3]
+    double T_;         // temperature [K]
+    double Omega_c_;   // angular velocity [s^-1]
     double f_;         // gravity enhancement factor
-    double Mc_;        // total cloud mass
-    double e_env_;     // internal energy of envelope
-    double rini_;      // initial radius of infall material
-    double drinidt_;   // 
-    double mdot_inf_;  // mass infall rate from envelope to star-disk system
+    double Mc_;        // total cloud mass [g]
+    double rini_;      // initial radius of infall material [cm]
+    double drinidt_;   // [cm s^-1]
+    double mdot_inf_;  // mass infall rate from envelope to star-disk system [g s^-1]
 private:
 };
 
@@ -109,8 +108,8 @@ class Star
 {
 public:
     void SetStar(Utils::InputConfigure &input);
-    double mass_init_;    // initial star mass
-    double mass_;         // star mass
+    double mass_init_;    // initial star mass [g]
+    double mass_;         // star mass [g]
 private:
 };
 
@@ -122,10 +121,10 @@ class Time
 {
 public:
     void SetTime(Utils::InputConfigure &input);
-    double tend_;
-    double t_;
-    double cfl_;
-    double delta_tout_;
+    double tend_;        // simulation end time [s]
+    double t_;           // current simulation time [s]
+    double cfl_;         // cfl number
+    double delta_tout_;  // delta output time [s]
 private:
 };
 
@@ -150,14 +149,14 @@ public:
     std::string outdir_;
     int output_count_;
 
-    double total_mass_;             // star mass + total disk mass
-    double total_disk_mass_;        // disk gas mass + disk dust mass
-    double mdot_acc_disk_;          // mass accretion rate from disk to star
-    double mdot_acc_env_;           // mass accretion rate from envelope to star
-    double mdot_inf_;               // infall rate from envelope to disk
-    double total_infall_mass_;
-    double mdot_wind_;              // wind mass loss rate from disk
-    double wind_mass_loss_;
+    double total_mass_;             // star mass + total disk mass [g]
+    double total_disk_mass_;        // disk gas mass + disk dust mass [g]
+    double mdot_acc_disk_;          // mass accretion rate from disk to star [g s^-1]
+    double mdot_acc_env_;           // mass accretion rate from envelope to star [g s^-1]
+    double mdot_inf_;               // infall rate from envelope to disk [g s^-1]
+    double total_infall_mass_;      // [g]
+    double mdot_wind_;              // wind mass loss rate from disk [g s^-1]
+    double wind_mass_loss_;         // [g]
 
     void OutputGrid();
     void OutputData(const std::string filename);

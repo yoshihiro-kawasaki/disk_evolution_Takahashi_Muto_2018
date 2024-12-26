@@ -62,7 +62,10 @@ public:
     void ReadFile(std::string file_name);
     size_t Size();
 
-    std::string Get(std::string key);
+    std::string GetString(std::string key);
+    double GetDouble(std::string key);
+    int GetInt(std::string key);
+    bool GetBool(std::string key);
 
     std::string GetInputFileName();
 

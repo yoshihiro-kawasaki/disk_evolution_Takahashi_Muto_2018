@@ -1,7 +1,7 @@
 import numpy as np 
 import matplotlib.pyplot as plt 
 
-file = "be.txt"
+file = "../be_sphere.txt"
 data = np.loadtxt(file, dtype=float, skiprows=1).T
 
 x = data[0]       # normalized radius
