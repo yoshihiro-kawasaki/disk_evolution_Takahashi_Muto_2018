@@ -181,7 +181,7 @@ void DiskEvolutionDriver::CalculateGasDustDragCoefficient()
         }
 
         inv_mfp                  = (4.0 * pdata_->gas_.rho_mid_[i] * cst::H2_CROSS_SECTION) / (9.0 * cst::GAS_MOLECULAR_MASS);
-        pdata_->dust_.St_[i]     = (0.5 * M_PI * pdata_->dust_.rho_di_ * pdata_->dust_.ad_[i] / pdata_->dust_.Sigma_[i]) * std::max(1.0, pdata_->dust_.ad_[i]*inv_mfp);
+        pdata_->dust_.St_[i]     = (0.5 * M_PI * pdata_->dust_.rho_di_ * pdata_->dust_.ad_[i] / pdata_->gas_.Sigma_[i]) * std::max(1.0, pdata_->dust_.ad_[i]*inv_mfp);
         fsigmag                  = pdata_->gas_.Sigma_[i]  / (pdata_->gas_.Sigma_[i] + pdata_->dust_.Sigma_[i]);
         fsigmad                  = pdata_->dust_.Sigma_[i] / (pdata_->gas_.Sigma_[i] + pdata_->dust_.Sigma_[i]);
         fmass                    = 2.0 * M_PI * SQR(pdata_->grid_.r_cen_[i]) * pdata_->gas_.Sigma_[i] / pdata_->gas_.Mr_cen_[i];
@@ -229,7 +229,7 @@ void DiskEvolutionDriver::CalculateDustGrowthRate()
         dv = std::sqrt(sqr_dvbr + sqr_dvturb);
 
         deltam = std::min(1.0, - std::log(dv/pdata_->dust_.vfrag_)/std::log(5));
-        
+
         dmSdt_dust_growth_[i] = 2.0 * cst::SQRT_PI * SQR(pdata_->dust_.ad_[i]) * dv * SQR(pdata_->dust_.Sigma_[i]) * deltam / HdT;
     }
 
@@ -414,7 +414,7 @@ double DiskEvolutionDriver::CalculateDtMin()
 
         dmSdt_dust_adv    = - 2.0*M_PI* (pdata_->grid_.r_bnd_[i+1]*flux_dust_m_[i+1] - pdata_->grid_.r_bnd_[i]*flux_dust_m_[i]) * inv_dV;
         dmSdt_dust_growth = dmSdt_dust_growth_[i];
-        if (pdata_->dust_.Sigma_[i] > SIGMA_GAS_FLOOR) {
+        if (pdata_->dust_.Sigma_[i] > SIGMA_DUST_FLOOR) {
             m = pdata_->dust_.md_[i];
         } else {
             m = pdata_->dust_.md0_;

@@ -115,7 +115,7 @@ Dust::~Dust()
 void Dust::SetDust(Utils::InputConfigure &input, Grid &grid)
 {
     vfrag_  = input.GetDouble("vfrag") * 1.0e2;
-    ad0_    = input.GetDouble("a0");
+    ad0_    = input.GetDouble("ad0");
     rho_di_ = input.GetDouble("rho_di");
     fdg_    = input.GetDouble("fdg");
     md0_    = (4.0*M_PI/3.0) * rho_di_ * CUB(ad0_);

@@ -8,7 +8,7 @@ spacing = log
 
 alpha_turb = 3.0e-4              # turbulent strength
 c_wind     = 1.0e-4              # wind strength
-vfrag      = 1.0e0               # dust fragmentation velocity [m s^-1]
+vfrag      = 1.0e1               # dust fragmentation velocity [m s^-1]
 ad0        = 1.0e-5              # initial dust size [cm]
 rho_di     = 1.6                 # dust internal density [g cm^-3]
 fdg        = 1.0e-2              # dust to gas mass ratio
