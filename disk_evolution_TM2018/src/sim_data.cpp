@@ -201,13 +201,14 @@ SimulationData::~SimulationData()
 void SimulationData::Initialization()
 {
     time_.t_              = 0.0;
+    total_mass_           = star_.mass_;
+    total_disk_mass_      = 0.0;
     mdot_acc_disk_        = 0.0;
     mdot_acc_env_         = 0.0;
-    total_disk_mass_      = 0.0;
-    total_mass_           = star_.mass_;
     mdot_inf_             = 0.0;
     total_infall_mass_    = star_.mass_;
     mdot_wind_            = 0.0;
+    wind_mass_loss_       = 0.0;
     return;
 }
 

@@ -1,4 +1,4 @@
-outdir = output/St1em1
+outdir = output/fiducial
 
 # disk parameters
 nr      = 150                    # number of radial cells
@@ -6,8 +6,8 @@ rmin    = 1.0e0                  # minimum (inner) radius [au]
 rmax    = 1.0e4                  # maximum (outer) radius [au]
 spacing = log
 
-alpha_turb = 1.0e-2              # turbulent strength
-c_wind     = 1.0e-5              # wind strength
+alpha_turb = 3.0e-4              # turbulent strength
+c_wind     = 1.0e-4              # wind strength
 St         = 1.0e-1              # Stokes number of dust
 fdg        = 1.0e-2              # dust to gas mass ratio
 
@@ -21,6 +21,6 @@ Mc = 1.5                         # total cloud mass [solar mass]
 Ms_init = 0.01                   # initial star mass [solar mass]
 
 # time parameters
-tend = 5.0e4                     # simulation end time [yr]
-cfl  = 0.1                       # cfl number
-delta_tout = 1.0e2               # delta output time [yr]
+tend = 1.28e6                    # simulation end time [yr]
+cfl  = 0.6                       # cfl number
+delta_tout = 1.0e4               # delta output time [yr]

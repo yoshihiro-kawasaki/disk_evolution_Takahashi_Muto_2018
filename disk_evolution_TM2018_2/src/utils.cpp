@@ -148,13 +148,45 @@ size_t InputConfigure::Size()
     return dict.size();
 }
 
-std::string InputConfigure::Get(std::string key)
+std::string InputConfigure::GetString(std::string key)
 {
     if (Contains(key)) {
         return dict[key];
     } else {
         std::cout << "## No item : " << key << std::endl;
         return "";
+    }
+}
+
+double InputConfigure::GetDouble(std::string key)
+{
+    if (Contains(key)) {
+        return std::stod(dict[key]);
+    } else {
+        std::cout << "## No item : " << key << std::endl;
+        return 0.0;
+    }
+}
+
+
+int InputConfigure::GetInt(std::string key)
+{
+    if (Contains(key)) {
+        return std::stoi(dict[key]);
+    } else {
+        std::cout << "## No item : " << key << std::endl;
+        return 0;
+    }
+}
+
+
+bool InputConfigure::GetBool(std::string key)
+{
+    if (Contains(key)) {
+        return Utils::ConvertStrToBool(dict[key]);
+    } else {
+        std::cout << "## No item : " << key << std::endl;
+        return 0;
     }
 }
 
