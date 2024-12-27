@@ -1,9 +1,7 @@
 Takahashi et al. 2018 https://ui.adsabs.harvard.edu/abs/2018ApJ...865..102T/abstract
 
-Makefile内のPROBDIR=TM2018の場合、ダストはストークス数をパラメータとする計算(Takahashi et al. 2018)を行う。このとき、inputファイルは、
-input_TM2018を用いる。PROBDIR=TM2018_2の場合は、ダストサイズをパラメータとして計算を行う。Takahashi et al. 2018のFig. 16と17の計算を行う。
-inputふぁいるは、input_TM2018_2を用いる。PROBDIR=TM2018_dustgrowthは、Takahashi et al. 2018の計算にsingle size approachによるダストサイズ進化
-(https://ui.adsabs.harvard.edu/abs/2016A%26A...589A..15S/abstract)を組み込んだものである。inputファイルは、input_TM2018_dustgrowthを用いる。
+Makefile内のPROBDIR=TM2018の場合、ダストはストークス数をパラメータとする計算(Takahashi et al. 2018)を行う。このとき、inputファイルは、input_TM2018を用いる。PROBDIR=TM2018_2の場合は、ダストサイズをパラメータとして計算を行う。Takahashi et al. 2018のFig. 16と17の計算を行う。
+inputファイルは、input_TM2018_2を用いる。PROBDIR=TM2018_dustgrowthは、Takahashi et al. 2018の計算にsingle size approachによるダストサイズ進化(https://ui.adsabs.harvard.edu/abs/2016A%26A...589A..15S/abstract)を組み込んだものである。inputファイルは、input_TM2018_dustgrowthを用いる。
 
 コードは、C++で書かれている。plotにpython(jupiter notebook)による結果の図示コードがある。
 
