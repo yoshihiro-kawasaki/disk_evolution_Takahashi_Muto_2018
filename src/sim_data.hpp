@@ -10,7 +10,6 @@
 #include <iostream>
 #include <cmath>
 
-constexpr double C_TINF = 2.567172178745525;  // ctinf.py
 constexpr double SIGMA_GAS_FLOOR  = 1.0e-20;
 constexpr double SIGMA_DUST_FLOOR = 1.0e-20;
 
@@ -96,14 +95,15 @@ class Cloud
 {
 public:
     void SetCloud(Utils::InputConfigure &input);
-    int nshells_;      // number of cloud shells
+    int    nshells_;   // number of cloud shells
     double nc_;        // central number density [cm^-3]
     double T_;         // temperature [K]
     double Omega_c_;   // angular velocity [s^-1]
     double f_;         // gravity enhancement factor
     double Mc_;        // total cloud mass [g]
-    double rini_;      // initial radius of infall material [cm]
-    double drinidt_;   // [cm s^-1]
+    double r_ini_;     // initial radius of infall material [cm]
+    double mr_ini_;    // enclosed mas within the radius r_ini_ [g]
+    double dr_ini_dt_; // [cm s^-1]
     double mdot_inf_;  // mass infall rate from envelope to star-disk system [g s^-1]
 private:
 };

@@ -4,7 +4,7 @@ outdir = output/dustgrowth
 nr      = 150                    # number of radial cells
 rmin    = 1.0e0                  # minimum (inner) radius [au]
 rmax    = 1.0e4                  # maximum (outer) radius [au]
-spacing = log
+spacing = log                    # log or root
 
 alpha_turb = 3.0e-4              # turbulent strength
 c_wind     = 1.0e-4              # wind strength

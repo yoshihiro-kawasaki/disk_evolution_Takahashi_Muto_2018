@@ -102,6 +102,10 @@ void BonnerEbertSphere::SetBonnerEbertSphere()
         std::exit(1);
     }
 
+    CalculateCoefTinf();
+
+    std::cout << std::scientific << coef_tinf_ << std::endl;
+
     return;
 }
 
@@ -133,18 +137,18 @@ double BonnerEbertSphere::CalculateInitialRinit()
 }
 
 
-void BonnerEbertSphere::CalculateMdotInfall(const double r_init, double &drinitdt, double &mdot_inf)
+void BonnerEbertSphere::CalculateMdotInfall(const double r_ini, double &dr_ini_dt, double &mdot_inf)
 {
-    if (r_init >= rout_bonner_) {
-        drinitdt = 0.0;
-        mdot_inf = 0.0;
+    if (r_ini >= rout_bonner_) {
+        dr_ini_dt = 0.0;
+        mdot_inf  = 0.0;
         return;
     }
 
     int i1 = 0, i2 = 0, ibmax = nshells_;
     // 分子雲コアの位置r_initにおける質量密度rho_initを求める。
     for (int i = ib_con_; i < ibmax; ++i) {
-        if (r_bonner_[i] >= r_init) {
+        if (r_bonner_[i] >= r_ini) {
             i1 = i - 1;
             i2 = i;
             ib_con_ = i;
@@ -156,25 +160,27 @@ void BonnerEbertSphere::CalculateMdotInfall(const double r_init, double &drinitd
         }
     }
 
-    double rho_init = Utils::LinearInterPolation(r_init, r_bonner_[i1], r_bonner_[i2], rho_bonner_[i1], rho_bonner_[i2]);
+    double rho_ini = Utils::LinearInterPolation(r_ini, r_bonner_[i1], r_bonner_[i2], rho_bonner_[i1], rho_bonner_[i2]);
 
     // ref. Takahashi et al. 2013
-    // 分子雲コアにおいて、初期にr_initの位置にあるshellが中心へ落下するまでの時間t_infはr_initの関数で与えられる、t_inf = tff(r_init)。
-    // 逆に、r_initはtffの関数で書ける、r_init = r_init(t_inf)。
-    // これの微分係数、dr_init/dt_infを求める。
+    // 分子雲コアにおいて、初期にr_iniの位置にあるshellが中心へ落下するまでの時間t_infはr_iniの関数で与えられる、t_inf = t_inf(r_ini)。
+    // 逆に、r_iniはt_infの関数で書ける、r_init = r_ini(t_inf)。
+    // これの微分係数、dr_ini/dt_infを求める。
 
-    double mr_init  = Utils::LinearInterPolation(r_init, r_bonner_[i1], r_bonner_[i2], mass_bonner_[i1], mass_bonner_[i2]);
-    double dmrdr    = 4.0*M_PI*SQR(r_init)*rho_init;
-    double dtdrinit = C_TINF * sqrt(r_init/(2.0*cst::GRAVITATIONAL_CONSTANT*mr_init)) * (1.5 - (0.5*r_init/mr_init)*dmrdr);
+    double mr_ini         = Utils::LinearInterPolation(r_ini, r_bonner_[i1], r_bonner_[i2], mass_bonner_[i1], mass_bonner_[i2]);
+    double dmr_ini_dr_ini = 4.0*M_PI*SQR(r_ini)*rho_ini;
+    double dt_ff_dr_ini   = sqrt(r_ini/(2.0*cst::GRAVITATIONAL_CONSTANT*mr_ini)) * (1.5 - (0.5*r_ini/mr_ini)*dmr_ini_dr_ini);
+    double dt_inf_dr_ini  = coef_tinf_ * dt_ff_dr_ini;
 
-    if (dtdrinit <= 0.0) {
+    if (dt_inf_dr_ini <= 0.0) {
         std::cerr << "BonnerEbertSphere::CalculateDrinitDt error : dtdrinit <= 0.0" << std::endl;
-        std::cerr << std::scientific << (r_init/cst::ASTRONOMICAL_UNIT) << " au, " << (mr_init/cst::SOLAR_MASS) << " M_solar." << std::endl;
+        std::cerr << std::scientific << (r_ini/cst::ASTRONOMICAL_UNIT) << " au, " << (mr_ini/cst::SOLAR_MASS) << " M_solar." << std::endl;
         std::exit(1);
     }
 
-    drinitdt = 1.0 / dtdrinit;
-    mdot_inf = 4.0*M_PI*rho_init*SQR(r_init)*drinitdt;
+    dr_ini_dt = 1.0 / dt_inf_dr_ini;
+    mdot_inf  = 4.0 * M_PI * rho_ini * SQR(r_ini) * dr_ini_dt;
+    
     return;
 }
 
@@ -206,6 +212,33 @@ void BonnerEbertSphere::SolveLaneEmdenEquation(const int n, double &x, const dou
     return;
 }
 
+double FuncCoefTinf(double x, void *data)
+{
+    double f = *(double*)(data);
+    return 1.0 / std::sqrt(std::log(x)/f + 1.0/x - 1.0);
+}
+
+void BonnerEbertSphere::CalculateCoefTinf()
+{
+    const double a = 0.0;
+    const double b = 1.0;
+    const int limit = 100;
+    const int lenw = limit*4;
+    double f = f_;
+
+    double abserr, result, work[lenw];
+    int ier, iwork[limit], last, neval;
+
+    const double epsabs = 0.0;;
+    const double epsrel = std::pow(10, std::log10(std::numeric_limits<double>::epsilon())/2.0 + 1.0);
+
+    quadpack_cpp::dqags(FuncCoefTinf, a, b, epsabs, epsrel, result, abserr, neval, 
+        ier, limit, lenw, last, iwork, work, &f);
+
+    coef_tinf_ = result;
+
+    return;
+}
 
 void BonnerEbertSphere::Output(const std::string file_name)
 {

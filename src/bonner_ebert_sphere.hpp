@@ -5,6 +5,11 @@
 #include "constants.hpp"
 #include "define_macro.hpp"
 #include "sim_data.hpp"
+#include "quadpack.hpp"
+
+#include <iostream>
+#include <limits>
+#include <string>
 
 class BonnerEbertSphere
 {
@@ -17,13 +22,19 @@ public:
     inline double GetRoutBonner() { return rout_bonner_; };
     double CalculateInitialRinit();
     void CalculateMdotInfall(const double r_init, double &drinitdt, double &mdot_inf);
+    inline double CalculateFreeFallTime(const double r_ini, const double mr_ini) {
+        return 0.5 * M_PI * std::sqrt(CUB(r_ini) / (2.0*cst::GRAVITATIONAL_CONSTANT*mr_ini));
+    };
+    inline double CalculateInfallTime(const double r_ini, const double mr_ini) {
+        return coef_tinf_ * std::sqrt(CUB(r_ini) / (2.0*cst::GRAVITATIONAL_CONSTANT*mr_ini));
+    }
     void Output(const std::string file_name);
 
 protected:
 
     SimulationData *pdata_;
 
-    int    nshells_;                // number of cloud shells
+    int    nshells_;               // number of cloud shells
     double Tc_;                    // BE-sphere (cloud) temperature [K]
     double cs_c_;                  // sound speed of BE-sphere [cm s^-1]
     double Mc_;                    // total BE-sphere mass [g]
@@ -31,6 +42,7 @@ protected:
     double rho_c_;                 // central mass density of BE-sphere [g cm^-3]
     double Omega_c_;               // angular speed of BE-sphere [s^-1]
     double f_;                     // density factor to promote gravitational collapse takahashi et al 2013
+    double coef_tinf_;             // coefficient of infall time, tinf = coef_tinf * tff (takahashi et al 2013)
     double Mp_init_;               // initial protostellar mass [g]
     double rout_bonner_;           // outer edge of BE-sphere (cloud) [cm]
     double rn_out_bonner_;         // nomalized outer edge of BE-sphere (cloud)
@@ -47,6 +59,8 @@ protected:
 private:
 
     void SolveLaneEmdenEquation(const int n, double &x, const double h, array::Double1D y);
+    void CalculateCoefTinf();
+    // double FuncCoefTinf(double x, void *data);
 
 };
 

@@ -166,7 +166,7 @@ void DriverBase::CalculateInfallAndWindRate()
 
     // calculate infall rate
     double j_core, inv_j_core, j;
-    j_core = pdata_->cloud_.Omega_c_ * SQR(pdata_->cloud_.rini_);
+    j_core = pdata_->cloud_.Omega_c_ * SQR(pdata_->cloud_.r_ini_);
     inv_j_core = 1.0 / j_core;
     mdot_inf_ = pdata_->cloud_.mdot_inf_;
 
@@ -301,8 +301,8 @@ bool DriverBase::DoTimeStep(double dt)
     // pdata_->dust_.Sigma_[is-1] = pdata_->dust_.Sigma_[is];
 
     // time step
-    pdata_->time_.t_     += dt;
-    pdata_->cloud_.rini_ += pdata_->cloud_.drinidt_*dt;
+    pdata_->time_.t_      += dt;
+    pdata_->cloud_.r_ini_ += pdata_->cloud_.dr_ini_dt_*dt;
 
     // update others
     pdata_->star_.mass_           += mdot_acc_total_ * dt;

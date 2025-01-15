@@ -14,7 +14,8 @@ objects = src/main.o \
 		  src/sim_data.o \
 		  src/$(PROBDIR)/dust_input.o \
 		  src/driver_base.o \
-		  src/$(PROBDIR)/driver.o 
+		  src/$(PROBDIR)/driver.o \
+		  src/quadpack.o
 
 
 run: $(objects)
@@ -44,6 +45,8 @@ src/driver_base.o: src/driver_base.hpp src/driver_base.cpp
 src/$(PROBDIR)/driver.o: src/driver.hpp src/$(PROBDIR)/driver.cpp 
 	(cd src/$(PROBDIR); $(CPP) $(CFLAGS) $(DEPENDPATH) driver.cpp)
 
+src/quadpack.o: src/quadpack.hpp src/quadpack.cpp
+	(cd src; $(CPP) $(CFLAGS) $(DEPENDPATH) quadpack.cpp)
 
 clean:
 	rm run $(objects)

@@ -52,9 +52,9 @@ int main(int argc, char *argv[])
     psim->output_count_ = 0;
     logofs.open(logfile, std::ios::out | std::ios::trunc);
     FAILED_TO_OPEN(logofs, logfile);
-    psim->cloud_.rini_  = pbes->CalculateInitialRinit();
-    pbes->CalculateMdotInfall(psim->cloud_.rini_, psim->cloud_.drinidt_, psim->cloud_.mdot_inf_);
-    psim->time_.t_ = std::sqrt(0.5 * CUB(psim->cloud_.rini_) / (cst::GRAVITATIONAL_CONSTANT * psim->star_.mass_init_)) * C_TINF;
+    psim->cloud_.r_ini_ = pbes->CalculateInitialRinit();
+    pbes->CalculateMdotInfall(psim->cloud_.r_ini_, psim->cloud_.dr_ini_dt_, psim->cloud_.mdot_inf_);
+    psim->time_.t_ = pbes->CalculateInfallTime(psim->cloud_.r_ini_, psim->star_.mass_init_);
     tout = psim->time_.t_ + psim->time_.delta_tout_;
     pded->SetInitialCondition();
     pded->CalculateDiskQuantities();
@@ -66,10 +66,10 @@ int main(int argc, char *argv[])
         count += 1;
 
         // determine dt
-        if (psim->cloud_.drinidt_ == 0.0) {
+        if (psim->cloud_.dr_ini_dt_ == 0.0) {
             dt_collapse = 1.0e2 * cst::SOLAR_YEAR;
         } else {
-            dt_collapse = 1.0e-2 * psim->cloud_.rini_ / psim->cloud_.drinidt_;
+            dt_collapse = 1.0e-2 * psim->cloud_.r_ini_ / psim->cloud_.dr_ini_dt_;
         }
         dt_disk = psim->time_.cfl_ * pded->CalculateDtMin();
         dt = std::min(dt_collapse, dt_disk);
@@ -91,11 +91,11 @@ int main(int argc, char *argv[])
             std::cout << "error : time step" << std::endl;
             break;
         }
-        pbes->CalculateMdotInfall(psim->cloud_.rini_, psim->cloud_.drinidt_, psim->cloud_.mdot_inf_);
+        pbes->CalculateMdotInfall(psim->cloud_.r_ini_, psim->cloud_.dr_ini_dt_, psim->cloud_.mdot_inf_);
         pded->CalculateDiskQuantities();
 
         // output
-        if (psim->cloud_.rini_ >= pbes->GetRoutBonner() && is_end_infall == false) {
+        if (psim->cloud_.r_ini_ >= pbes->GetRoutBonner() && is_end_infall == false) {
             std::cout << "end infall : time = " << (psim->time_.t_/cst::SOLAR_YEAR) << std::endl;
             is_end_infall = true;
             psim->output_count_++;
