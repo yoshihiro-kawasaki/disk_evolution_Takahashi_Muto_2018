@@ -16,19 +16,19 @@ public:
     Grid();
     ~Grid();
 
-    int nr_;
-    int ngh_;
-    int nrtotc_;
-    int nrtotb_;
-    int is_;
-    int ie_;
-    double rmin_;
-    double rmax_;
-    array::Double1D r_cen_;      // [cm]
-    array::Double1D r_bnd_;      // [cm]
-    array::Double1D r_vol_;      // [cm]
-    array::Double1D dr_cen_;     // [cm]
-    array::Double1D dr_bnd_;     // [cm]
+    int nr_;                     // number of radial cells
+    int ngh_;                    // number of ghost cells
+    int nrtotc_;                 // total cell center
+    int nrtotb_;                 // total cell boundary
+    int is_;                     // start index of computation domain
+    int ie_;                     // end index of computation domain
+    double rmin_;                // minimum radius
+    double rmax_;                // maximum radius 
+    array::Double1D r_cen_;      // cell center [cm]
+    array::Double1D r_bnd_;      // cell boundary [cm]
+    array::Double1D r_vol_;      // cell volume [cm]
+    array::Double1D dr_cen_;     // delta cell center [cm]
+    array::Double1D dr_bnd_;     // delta cell boundary [cm]
     array::Double1D inv_r_cen_;  // 1 / r_cen_
     array::Double1D inv_r_vol_;  // 1 / r_vol_
     array::Double1D inv_dr_cen_; // 1 / dr_cen_
