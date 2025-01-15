@@ -17,7 +17,7 @@ inputファイルは、input_TM2018_2を用いる。
 ```
 PROBDIR = TM2018_dustgrowth
 ```
-は、Takahashi and Muto (2018)の計算にsingle size approachによるダストサイズ進化(Sato et al. (2016), https://ui.adsabs.harvard.edu/abs/2016A%26A...589A..15S/abstract)を組み込んだものである。inputファイルは、input_TM2018_dustgrowthを用いる。
+は、Takahashi and Muto (2018)の計算にsingle size approachによるダストサイズ進化(Sato et al. (2016), https://ui.adsabs.harvard.edu/abs/2016A%26A...589A..15S/abstract) を組み込んだものである。inputファイルは、input_TM2018_dustgrowthを用いる。
 PROBDIRの選択後、makeでコンパイル。
 ```
 $ make clean
