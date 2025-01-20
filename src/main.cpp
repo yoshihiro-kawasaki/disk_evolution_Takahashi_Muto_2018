@@ -8,21 +8,24 @@
 #include <fstream>
 #include <cmath>
 #include <chrono>
+#include <memory>
 #include <sys/stat.h>
 
 int main(int argc, char *argv[])
 {
-    std::chrono::system_clock::time_point start, end;
-    start = std::chrono::system_clock::now();
+    auto start = std::chrono::system_clock::now();
 
-    std::string input_file;
+    // ############################################################# //
+    // ############################################################# //
+    // ############################################################# //
+
     if (argc != 2) {
-        std::cerr << "# ERROR : main, no input file" << std::endl;
-        std::exit(1);
+        std::cerr << "Error: No input file specified." << std::endl;
+        return EXIT_FAILURE;
     }
 
-    input_file = argv[1];
-    std::cout << "input file : " << input_file << std::endl;
+    std::string input_file = argv[1];
+    std::cout << "Input file: " << input_file << std::endl;
 
     /* input */
     Utils::InputConfigure input;
@@ -43,7 +46,7 @@ int main(int argc, char *argv[])
     /* other variables */
     double dt, dt_disk, dt_collapse, tout;
     long int count = 0;
-    bool is_end_infall;
+    bool is_end_infall = false;
     std::string outfilename;
     std::string logfile = psim->outdir_ + "/log";
     std::ofstream logofs;
@@ -118,7 +121,11 @@ int main(int argc, char *argv[])
 
     logofs.close();
 
-    end = std::chrono::system_clock::now();
+    // ############################################################# //
+    // ############################################################# //
+    // ############################################################# //
+
+    auto end = std::chrono::system_clock::now();
     const double timed = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
     std::cout << "time = " << (timed * 1.0e-3) << "sec" << std::endl;
 

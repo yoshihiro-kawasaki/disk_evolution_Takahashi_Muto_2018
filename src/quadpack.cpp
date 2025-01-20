@@ -22,123 +22,136 @@ namespace quadpack_cpp
 #define ARRAYF(a, i) (a[(i)-1])
 
 /**
-* @def MATF
-* @brief C++ array index --> Fortran 2d-array index
-* @details
+ * @def MATF
+ * @brief C++ array index --> Fortran 2d-array index
+ * @details
+ *  a[nrows][ncols] = a[nrows * ncols]
+ *  a[i][j] = a[i*ncols + j]
 */
-#define MATF(a, cols,  i, j) (a[((i) - 1) * (cols) + ((j) - 1)])
+#define MATF(a, ncols,  i, j) (a[((i) - 1) * (ncols) + ((j) - 1)])
 
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
 
-namespace {
-    const double d1mach[] = {
-        std::numeric_limits<double>::min(),
-        std::numeric_limits<double>::max(),
-        std::pow(static_cast<double>(std::numeric_limits<double>::radix), -std::numeric_limits<double>::digits),
-        std::numeric_limits<double>::epsilon(),
-        std::log10(static_cast<double>(std::numeric_limits<double>::radix))
-    };
-}
+using QUADPACK_CPP_WEIGHT_FUNCTION = double(*)(const double x, const double a, const double b, 
+                                              const double c, const double d, const int i);
+
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
+
+const double d1mach[5] = {
+    std::numeric_limits<double>::min(),
+    std::numeric_limits<double>::max(),
+    std::pow(static_cast<double>(std::numeric_limits<double>::radix), -std::numeric_limits<double>::digits),
+    std::numeric_limits<double>::epsilon(),
+    std::log10(static_cast<double>(std::numeric_limits<double>::radix))
+};
+
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
 
 /**
  * @fn void dgtsl
+ * @brief dgtsl given a general tridiagonal matrix and a right hand side will find the solution.
+ *
+ * @param [in] int n 
+ *      is the order of the tridiagonal matrix.
+ *
+ * @param [in] double* c
+ *      is the subdiagonal of the tridiagonal matrix.
+ *      c(2) through c(n) should contain the subdiagonal.
+ *      on output c is destroyed.
+ *   
+ * @param [in] double *d
+ *      is the diagonal of the tridiagonal matrix.
+ *      on output d is destroyed.
+ *
+ * @param [in] double *e
+ *      is the superdiagonal of the tridiagonal matrix.
+ *      e(1) through e(n-1) should contain the superdiagonal.
+ *      on output e is destroyed.
+ *
+ * @param [inout] double *b
+ *      is the right hand side vector.
+ *
+ * @param [inout] int &info
+ *      info = 0 normal value.
+ *      info = k if the k-th element of the diagonal becomes
+ *             exactly zero.  the subroutine returns when
+ *             this is detected.
+ *
+ * @note 
+ *      linpack. this version dated 08/14/78 .
+ *      jack dongarra, argonne national laboratory.
 */
-void dgtsl(const int n, 
-           double *c,
-           double *d,
-           double *e,
-           double *b,
-           int &info)
-{
-    int k, kb, kp1, nm1, nm2;
-    double t;
-    // begin block permitting ...exits to 100
-    info = 0;
-    ARRAYF(c, 1) = ARRAYF(d, 1);
-    nm1          = n - 1;
-    if (nm1 < 1) goto label_40;
-    ARRAYF(d, 1) = ARRAYF(e, 1);
-    ARRAYF(e, 1) = 0.0;
-    ARRAYF(e, n) = 0.0;
-    //
-    for (k = 1; k <= nm1; ++k) {
-        kp1 = k + 1;
-        //
-        // find the largest of the two rows
-        //
-        if (std::abs(ARRAYF(c, kp1)) < std::abs(ARRAYF(c, k))) goto label_10;
-        //
-        // interchange row
-        //
-        t              = ARRAYF(c, kp1);
-        ARRAYF(c, kp1) = ARRAYF(c,   k);
-        ARRAYF(c,   k) = t;
-        t              = ARRAYF(d, kp1);
-        ARRAYF(d, kp1) = ARRAYF(d,   k);
-        ARRAYF(d,   k) = t;
-        t              = ARRAYF(e, kp1);
-        ARRAYF(e, kp1) = ARRAYF(e,   k);
-        ARRAYF(e,   k) = t;
-        t              = ARRAYF(b, kp1);
-        ARRAYF(b, kp1) = ARRAYF(b,   k);
-        ARRAYF(b,   k) = t;
-        label_10:
-        //
-        // zero elements
-        //
-        if (ARRAYF(c, k) != 0.0) goto label_20;
-        info = k;
-        // ............exit
-        goto label_100;
-        label_20:
-        t              = -ARRAYF(c, kp1) / ARRAYF(c, k);
-        ARRAYF(c, kp1) =  ARRAYF(d, kp1) + t*ARRAYF(d, k);
-        ARRAYF(d, kp1) =  ARRAYF(e, kp1) + t*ARRAYF(e, k);
-        ARRAYF(e, kp1) =  0.0;
-        ARRAYF(b, kp1) =  ARRAYF(b, kp1) + t*ARRAYF(b, k);
-    }
-    label_40:
-    if (ARRAYF(c, n) != 0.0) goto label_50;
-    info = n;
-    goto label_90;
-    label_50:
-    //
-    // back solve
-    //
-    nm2          = n - 2;
-    ARRAYF(b, n) = ARRAYF(b, n) / ARRAYF(c, n);
-    if (n == 1) goto label_80;
-    ARRAYF(b, nm1) = (ARRAYF(b, nm1) - ARRAYF(d, nm1)*ARRAYF(b, n)) / ARRAYF(c, nm1);
-    if (nm2 < 1) goto label_70;
-    for (kb = 1; kb <= nm2; ++kb) {
-        k            = nm2 - kb + 1;
-        ARRAYF(b, k) = (ARRAYF(b, k) - ARRAYF(d, k)*ARRAYF(b, k+1) - ARRAYF(e, k)*ARRAYF(b, k+2)) / ARRAYF(c, k);
-    }
-    label_70:
-    label_80:
-    label_90:
-    label_100:
-    return;
-}
+void dgtsl(const int n, double *c, double *d, double *e, double *b, int &info);
+
+void dqc25c(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double c, 
+            double &result, double &abserr, int &krul, int &neval, void *user_data);
+
+void dqc25f(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double omega, const int integr, 
+            const int nrmom, const int maxp1, const int ksave, double &result, double &abserr, int &neval, 
+            double &resabs, double &resasc, int &momcom, double *chebmo, void *user_data);
+
+void dqc25s(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double bl, const double br,
+            const double alfa, const double beta, const double *ri, const double *rj, const double *rg,
+            const double *rh, double &result, double &abserr, double &resasc, const int integr, int &nev,
+            void *user_data);
+
+void dqcheb(const double *x, double *fval, double *cheb12, double *cheb24);
+
+void dqelg(int &n, double *epstab, double &result, double &abserr, double *res3la, int &nres);
+
+void dqk15(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data);
+
+void dqk15i(QUADPACK_CPP_FUNCTION f, const double boun, const int inf, const double a, const double b,
+            double &result, double &abserr, double &resabs, double &resasc, void *user_data);
+
+void dqk15w(QUADPACK_CPP_FUNCTION f, QUADPACK_CPP_WEIGHT_FUNCTION w, const double p1, const double p2,
+            const double p3, const double p4, const int kp, const double a, const double b, double &result,
+            double &abserr, double &resabs, double &resasc, void *user_data);
+
+void dqk21(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data);
+
+void dqk31(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data);
+
+void dqk41(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data);
+
+void dqk51(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data);
+
+void dqk61(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data);
+
+void dqmomo(const double alfa, const double beta, double *ri, double *rj, double *rg, double *rh, const int integr);
+
+void dqpsrt(const int limit, const int last, int &maxerr, double &ermax, const double *elist, int *iord, int &nrmax);
+
+double dqwgtc(const double x, const double c, const double p2, const double p3, const double p4, const int kp);
+
+double dqwgtf(const double x, const double omega, const double p2, const double p3, const double p4, const int integr);
+
+double dqwgts(const double x, const double a, const double b, const double alfa, const double beta, const int integr);
+
+void xerror(const std::string messg, const int nerr, const int level);
+
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
+// ******************************************************************************************************************* //
 
 /**
  * @fn void dgag
 */
-void dqag(QUADPACK_CPP_FUNCTION f, 
-          const double a, 
-          const double b, 
-          const double epsabs, 
-          const double epsrel,
-          const int key, 
-          double &result,
-          double &abserr, 
-          int &neval, 
-          int &ier,
-          const int limit, 
-          const int lenw, 
-          int &last, 
-          int *iwork,
-          double *work,
-          void *data)
+void dqag(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double epsabs, const double epsrel,
+          const int key, double &result, double &abserr, int &neval, int &ier, const int limit, 
+          const int lenw, int &last, int *iwork, double *work, void *user_data)
 {
     int lvl, l1, l2, l3;
     //
@@ -150,7 +163,7 @@ void dqag(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if (limit < 1 || lenw < limit*4) goto label_10;
+    if (limit < 1 || lenw < limit*4) goto LABEL_10;
     //
     // prepare call for dqage.
     //
@@ -159,12 +172,12 @@ void dqag(QUADPACK_CPP_FUNCTION f,
     l3 = limit + l2;
     //
     dqage(f, a, b, epsabs, epsrel, key, limit, result, abserr, neval, ier,
-        &ARRAYF(work, 1) ,&ARRAYF(work, l1) ,&ARRAYF(work, l2) ,&ARRAYF(work, l3), iwork, last, data);
+        &ARRAYF(work, 1) ,&ARRAYF(work, l1) ,&ARRAYF(work, l2) ,&ARRAYF(work, l3), iwork, last, user_data);
     //
     // call error handler if necessary.
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) lvl = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqag";
@@ -173,36 +186,17 @@ void dqag(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqage(QUADPACK_CPP_FUNCTION f, 
-           const double a, 
-           const double b, 
-           const double epsabs, 
-           const double epsrel,
-           const int key, 
-           const int limit, 
-           double &result, 
-           double &abserr, 
-           int &neval,
-           int &ier, 
-           double *alist, 
-           double *blist,
-           double *rlist, 
-           double *elist, 
-           int *iord, 
-           int &last,
-           void *data)
+/**
+ * @fn void dgage
+*/
+void dqage(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double epsabs, const double epsrel,
+           const int key, const int limit, double &result, double &abserr, int &neval, int &ier, 
+           double *alist, double *blist, double *rlist, double *elist, int *iord, int &last, void *user_data)
 {
     double area1, a1, b1, defab1, error1;
     double area2, a2, b2, defab2, error2;
-    double area;
-    double area12;
-    double erro12;
-    double errsum;
-    double errmax;
-    double errbnd;
-    int maxerr;
-    double resabs, defabs;
-    int iroff1, iroff2, k, keyf, nrmax;
+    double area, area12, erro12, errsum, errmax, errbnd, defabs, resabs;
+    int maxerr, iroff1, iroff2, k, keyf, nrmax;
     double epmach, uflow;
     // first executable statement  dqage
     epmach = ARRAYF(d1mach, 4);
@@ -211,17 +205,17 @@ void dqage(QUADPACK_CPP_FUNCTION f,
     // test on validity of parameters
     // ------------------------------
     //
-    ier    = 0;
-    neval  = 0;
-    last   = 0;
-    result = 0.0;
-    abserr = 0.0;
+    ier              = 0;
+    neval            = 0;
+    last             = 0;
+    result           = 0.0;
+    abserr           = 0.0;
     ARRAYF(alist, 1) = a;
     ARRAYF(blist, 1) = b;
     ARRAYF(rlist, 1) = 0.0;
     ARRAYF(elist, 1) = 0.0;
     if (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29)) ier = 6;
-    if (ier == 6) goto label_999;
+    if (ier == 6) goto LABEL_999;
     //
     // first approximation to the integral
     // -----------------------------------
@@ -230,23 +224,23 @@ void dqage(QUADPACK_CPP_FUNCTION f,
     if (key <= 0) keyf = 1;
     if (key >= 7) keyf = 6;
     neval = 0;
-    if (keyf == 1) dqk15(f,a,b,result,abserr,defabs,resabs, data);
-    if (keyf == 2) dqk21(f,a,b,result,abserr,defabs,resabs, data);
-    if (keyf == 3) dqk31(f,a,b,result,abserr,defabs,resabs, data);
-    if (keyf == 4) dqk41(f,a,b,result,abserr,defabs,resabs, data);
-    if (keyf == 5) dqk51(f,a,b,result,abserr,defabs,resabs, data);
-    if (keyf == 6) dqk61(f,a,b,result,abserr,defabs,resabs, data);
-    last = 1;
+    if (keyf == 1) dqk15(f, a, b, result, abserr, defabs, resabs, user_data);
+    if (keyf == 2) dqk21(f, a, b, result, abserr, defabs, resabs, user_data);
+    if (keyf == 3) dqk31(f, a, b, result, abserr, defabs, resabs, user_data);
+    if (keyf == 4) dqk41(f, a, b, result, abserr, defabs, resabs, user_data);
+    if (keyf == 5) dqk51(f, a, b, result, abserr, defabs, resabs, user_data);
+    if (keyf == 6) dqk61(f, a, b, result, abserr, defabs, resabs, user_data);
+    last             = 1;
     ARRAYF(rlist, 1) = result;
     ARRAYF(elist, 1) = abserr;
-    ARRAYF(iord, 1)  = 1;
+    ARRAYF(iord,  1) = 1;
     //
     // test on accuracy.
     //
-    errbnd = std::max(epsabs, epsrel*std::abs(result));
-    if (abserr <= 50.0*epmach*defabs && abserr > errbnd) ier = 2;
+    errbnd = std::max(epsabs, epsrel * std::abs(result));
+    if (abserr <= 50.0 * epmach * defabs && abserr > errbnd) ier = 2;
     if(limit == 1) ier = 1;
-    if(ier != 0 || (abserr <= errbnd && abserr != resabs) || abserr == 0.0) goto label_60;
+    if(ier != 0 || (abserr <= errbnd && abserr != resabs) || abserr == 0.0) goto LABEL_60;
     //
     // initialization
     // --------------
@@ -270,34 +264,35 @@ void dqage(QUADPACK_CPP_FUNCTION f,
         b1 = 0.5 * (ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
         a2 = b1;
         b2 = ARRAYF(blist, maxerr);
-        if (keyf == 1) dqk15(f, a1, b1, area1, error1, resabs, defab1, data);
-        if (keyf == 2) dqk21(f, a1, b1, area1, error1, resabs, defab1, data);
-        if (keyf == 3) dqk31(f, a1, b1, area1, error1, resabs, defab1, data);
-        if (keyf == 4) dqk41(f, a1, b1, area1, error1, resabs, defab1, data);
-        if (keyf == 5) dqk51(f, a1, b1, area1, error1, resabs, defab1, data);
-        if (keyf == 6) dqk61(f, a1, b1, area1, error1, resabs, defab1, data);
-        if (keyf == 1) dqk15(f, a2, b2, area2, error2, resabs, defab2, data);
-        if (keyf == 2) dqk21(f, a2, b2, area2, error2, resabs, defab2, data);
-        if (keyf == 3) dqk31(f, a2, b2, area2, error2, resabs, defab2, data);
-        if (keyf == 4) dqk41(f, a2, b2, area2, error2, resabs, defab2, data);
-        if (keyf == 5) dqk51(f, a2, b2, area2, error2, resabs, defab2, data);
-        if (keyf == 6) dqk61(f, a2, b2, area2, error2, resabs, defab2, data);
+        if (keyf == 1) dqk15(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        if (keyf == 2) dqk21(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        if (keyf == 3) dqk31(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        if (keyf == 4) dqk41(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        if (keyf == 5) dqk51(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        if (keyf == 6) dqk61(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        if (keyf == 1) dqk15(f, a2, b2, area2, error2, resabs, defab2, user_data);
+        if (keyf == 2) dqk21(f, a2, b2, area2, error2, resabs, defab2, user_data);
+        if (keyf == 3) dqk31(f, a2, b2, area2, error2, resabs, defab2, user_data);
+        if (keyf == 4) dqk41(f, a2, b2, area2, error2, resabs, defab2, user_data);
+        if (keyf == 5) dqk51(f, a2, b2, area2, error2, resabs, defab2, user_data);
+        if (keyf == 6) dqk61(f, a2, b2, area2, error2, resabs, defab2, user_data);
         //
         // improve previous approximations to integral
         // and error and test for accuracy.
-        neval += 1;
-        area12 = area1 + area2;
+        //
+        neval++;
+        area12 = area1  + area2;
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
-        area   = area + area12 - ARRAYF(rlist, maxerr);
-        if (defab1 == error1 || defab2 == error2) goto label_5;
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) <= 1.0e-5*std::abs(area12) && erro12 >= 0.99*errmax) iroff1 += 1;
-        if (last > 10 && erro12 > errmax) iroff2 += 1;
-        label_5:
+        area   = area   + area12 - ARRAYF(rlist, maxerr);
+        if (defab1 == error1 || defab2 == error2) goto LABEL_5;
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) <= 1.0e-5 * std::abs(area12) && erro12 >= 0.99 * errmax) iroff1++;
+        if (last > 10 && erro12 > errmax) iroff2++;
+LABEL_5:
         ARRAYF(rlist, maxerr) = area1;
         ARRAYF(rlist, last)   = area2;
-        errbnd = std::max(epsabs, epsrel*std::abs(area));
-        if (errsum <= errbnd) goto label_8;
+        errbnd                = std::max(epsabs, epsrel * std::abs(area));
+        if (errsum <= errbnd) goto LABEL_8;
         //
         // test for roundoff error and eventually set error flag.
         //
@@ -311,19 +306,19 @@ void dqage(QUADPACK_CPP_FUNCTION f,
         // set error flag in the case of bad integrand behaviour
         // at a point of the integration range.
         //
-        if(std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2*epmach)*(std::abs(a2) + 1.0e3*uflow)) ier = 3;
+        if(std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2 * epmach) * (std::abs(a2) + 1.0e3 * uflow)) ier = 3;
         //
         // append the newly-created intervals to the list.
         //
-        label_8:
-        if (error2 > error1) goto label_10;
+LABEL_8:
+        if (error2 > error1) goto LABEL_10;
         ARRAYF(alist, last)   = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist, last)   = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist, last)   = error2;
-        goto label_20;
-        label_10:
+        goto LABEL_20;
+LABEL_10:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist, last)   = a1;
         ARRAYF(blist, last)   = b1;
@@ -336,44 +331,34 @@ void dqage(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with the largest error estimate (to be bisected next).
         //
-        label_20:
+LABEL_20:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
         // jump out of for-loop
-        if(ier != 0.0 || errsum <= errbnd) goto label_40;
+        if(ier != 0.0 || errsum <= errbnd) goto LABEL_40;
     }
     //
     // compute final result.
     // ---------------------
     //
-    label_40:
+LABEL_40:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_60:
-    if (keyf != 1) neval = (10*keyf + 1)*(2*neval + 1);
-    if (keyf == 1) neval = 30*neval + 15;
-    label_999:
+LABEL_60:
+    if (keyf != 1) neval = (10 * keyf + 1) * (2 * neval + 1);
+    if (keyf == 1) neval = 30 * neval + 15;
+LABEL_999:
     return;
 }
 
-
-void dqagi(QUADPACK_CPP_FUNCTION f,
-           const double bound,
-           const int inf,
-           const double epsabs,
-           const double epsrel,
-           double &result,
-           double &abserr,
-           int &neval,
-           int &ier,
-           const int limit,
-           const int lenw,
-           int &last,
-           int *iwork,
-           double *work,
-           void *data)
+/**
+ * @fn void dgagi
+*/
+void dqagi(QUADPACK_CPP_FUNCTION f, const double bound, const int inf, const double epsabs, const double epsrel,
+           double &result, double &abserr, int &neval, int &ier, const int limit, const int lenw,
+           int &last, int *iwork, double *work, void *user_data)
 {
     int lvl, l1, l2, l3;
     // first executable statement  dqagi
@@ -382,7 +367,7 @@ void dqagi(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if(limit < 1 || lenw < limit*4) goto label_10;
+    if(limit < 1 || lenw < limit*4) goto LABEL_10;
     //
     // prepare call for dqagie.
     //
@@ -391,12 +376,12 @@ void dqagi(QUADPACK_CPP_FUNCTION f,
     l3 = limit + l2;
     //
     dqagie(f, bound, inf, epsabs, epsrel, limit, result, abserr, neval, ier,
-        &ARRAYF(work, 1) ,&ARRAYF(work, l1) ,&ARRAYF(work, l2) ,&ARRAYF(work, l3), iwork, last, data);
+        &ARRAYF(work, 1) ,&ARRAYF(work, l1) ,&ARRAYF(work, l2) ,&ARRAYF(work, l3), iwork, last, user_data);
     //
     // call error handler if necessary.
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) lvl = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqagi";
@@ -405,43 +390,19 @@ void dqagi(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqagie(QUADPACK_CPP_FUNCTION f,
-            const double bound,
-            const int inf,
-            const double epsabs,
-            const double epsrel,
-            const int limit,
-            double &result,
-            double &abserr,
-            int &neval,
-            int &ier,
-            double *alist,
-            double *blist,
-            double *rlist,
-            double *elist,
-            int *iord,
-            int &last,
-            void *data)
+/**
+ * @fn void dgagie
+*/
+void dqagie(QUADPACK_CPP_FUNCTION f, const double bound, const int inf, const double epsabs, const double epsrel,
+            const int limit, double &result, double &abserr, int &neval, int &ier, double *alist,
+            double *blist, double *rlist, double *elist, int *iord, int &last, void *user_data)
 {
-    double area1, a1, b1, defab1, error1;
-    double area2, a2, b2, defab2, error2;
-    double area12;
-    double erro12;
-    double errmax;
-    double erlast;
-    double area;
-    double errsum;
-    double errbnd;
-    double small;
-    double erlarg;
-    int maxerr;
-    int nres;
-    int numrl2;
-    bool extrap;
-    bool noext;
-    double rlist2[52];
-    double abseps, boun, correc, defabs, dres, ertest, resabs, reseps, res3la[3];
-    int id, ierro, iroff1, iroff2, iroff3, jupbnd, k, ksgn, ktmin, nrmax;
+    int id, ierro, iroff1, iroff2, iroff3, jupbnd, k, ksgn, ktmin, L, maxerr, nres, nrmax, numrl2;
+    bool extrap, noext;
+    double a1, a2, abseps, area, area1, area12, area2, b1, b2, boun, correc, defabs;
+    double defab1, defab2, dres, erlarg, erlast, errbnd, errmax, error1, error2;
+    double erro12, errsum, ertest, resabs, reseps, small;
+    double rlist2[52], res3la[3];
     double epmach, uflow, oflow;
     // first executable statement  dqagie
     epmach = ARRAYF(d1mach, 4);
@@ -449,18 +410,18 @@ void dqagie(QUADPACK_CPP_FUNCTION f,
     // test on validity of parameters
     // -----------------------------
     //
-    ier    = 0;
-    neval  = 0;
-    last   = 0;
-    result = 0.0;
-    abserr = 0.0;
+    ier              = 0;
+    neval            = 0;
+    last             = 0;
+    result           = 0.0;
+    abserr           = 0.0;
     ARRAYF(alist, 1) = 0.0;
     ARRAYF(blist, 1) = 1.0;
     ARRAYF(rlist, 1) = 0.0;
     ARRAYF(elist, 1) = 0.0;
     ARRAYF(iord,  1) = 0;
-    if (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29)) ier = 6;
-    if (ier == 6) goto label_999;
+    if (epsabs <= 0.0 && epsrel < std::max(50.0 * epmach, 5.0e-29)) ier = 6;
+    if (ier == 6) goto LABEL_999;
     //
     //
     // first approximation to the integral
@@ -473,42 +434,42 @@ void dqagie(QUADPACK_CPP_FUNCTION f,
     //
     boun = bound;
     if (inf == 2) boun = 0.0;
-    dqk15i(f, boun, inf, 0.0, 1.0, result, abserr, defabs, resabs, data);
+    dqk15i(f, boun, inf, 0.0, 1.0, result, abserr, defabs, resabs, user_data);
     //
     // test on accuracy
     //
-    last = 1;
+    last             = 1;
     ARRAYF(rlist, 1) = result;
     ARRAYF(elist, 1) = abserr;
     ARRAYF(iord,  1) = 1;
-    dres = std::abs(result);
-    errbnd = std::max(epsabs, epsrel*dres);
-    if (abserr <= 1.0e2*epmach*defabs && abserr > errbnd) ier = 2;
+    dres             = std::abs(result);
+    errbnd           = std::max(epsabs, epsrel * dres);
+    if (abserr <= 1.0e2 * epmach * defabs && abserr > errbnd) ier = 2;
     if (limit == 1) ier = 1;
-    if (ier != 0 || (abserr <= errbnd && abserr != resabs) || abserr == 0.0) goto label_130;
+    if (ier != 0 || (abserr <= errbnd && abserr != resabs) || abserr == 0.0) goto LABEL_130;
     //
     // initialization
     // --------------
     //
-    uflow = ARRAYF(d1mach, 1);
-    oflow = ARRAYF(d1mach, 2);
+    uflow             = ARRAYF(d1mach, 1);
+    oflow             = ARRAYF(d1mach, 2);
     ARRAYF(rlist2, 1) = result;
-    errmax = abserr;
-    maxerr = 1;
-    area = result;
-    errsum = abserr;
-    abserr = oflow;
-    nrmax = 1;
-    nres = 0;
-    ktmin = 0;
-    numrl2 = 2;
-    extrap = false;
-    noext = false;
-    ierro = 0;
-    iroff1 = 0;
-    iroff2 = 0;
-    iroff3 = 0;
-    ksgn = -1;
+    errmax            = abserr;
+    maxerr            = 1;
+    area              = result;
+    errsum            = abserr;
+    abserr            = oflow;
+    nrmax             = 1;
+    nres              = 0;
+    ktmin             = 0;
+    numrl2            = 2;
+    extrap            = false;
+    noext             = false;
+    ierro             = 0;
+    iroff1            = 0;
+    iroff2            = 0;
+    iroff3            = 0;
+    ksgn              = -1;
     if(dres >= (1.0 - 50.0*epmach)*defabs) ksgn = 1;
     //
     // main for-loop
@@ -519,30 +480,30 @@ void dqagie(QUADPACK_CPP_FUNCTION f,
         // bisect the subinterval with the nrmax-th largest error estimate.
         //
         a1 = ARRAYF(alist, maxerr);
-        b1 = 0.5*(ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
+        b1 = 0.5 * (ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
         a2 = b1;
         b2 = ARRAYF(blist, maxerr);
         erlast = errmax;
-        dqk15i(f, boun, inf, a1, b1, area1, error1, resabs, defab1, data);
-        dqk15i(f, boun, inf, a2, b2, area2, error2, resabs, defab2, data);
+        dqk15i(f, boun, inf, a1, b1, area1, error1, resabs, defab1, user_data);
+        dqk15i(f, boun, inf, a2, b2, area2, error2, resabs, defab2, user_data);
         // 
         // improve previous approximations to integral 
         // and error and test for accuracy.
         //
-        area12 = area1 + area2;
+        area12 = area1  + area2;
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
-        area   = area + area12 - ARRAYF(rlist, maxerr);
-        if (defab1 == error1 || defab2 == error2) goto label_15;
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5*std::abs(area12) || erro12 < 0.99*errmax) goto label_10;
-        if (extrap)  iroff2 += 1;
-        if (!extrap) iroff1 += 1;
-        label_10:
-        if (last > 10 && erro12 > errmax) iroff3 += 1;
-        label_15:
+        area   = area   + area12 - ARRAYF(rlist, maxerr);
+        if (defab1 == error1 || defab2 == error2) goto LABEL_15;
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5 * std::abs(area12) || erro12 < 0.99 * errmax) goto LABEL_10;
+        if (extrap)  iroff2++;
+        if (!extrap) iroff1++;
+LABEL_10:
+        if (last > 10 && erro12 > errmax) iroff3++;
+LABEL_15:
         ARRAYF(rlist, maxerr) = area1;
-        ARRAYF(rlist, last)   = area2;
-        errbnd = std::max(epsabs, epsrel*std::abs(area));
+        ARRAYF(rlist,   last) = area2;
+        errbnd                = std::max(epsabs, epsrel * std::abs(area));
         // 
         // test for roundoff error and eventually set error flag.
         //
@@ -557,18 +518,18 @@ void dqagie(QUADPACK_CPP_FUNCTION f,
         // set error flag in the case of bad integrand behaviour 
         // at a point of the integration range.
         //
-        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2*epmach)*(std::abs(a2) + 1.0e3*uflow)) ier = 4;
+        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2 * epmach) * (std::abs(a2) + 1.0e3 * uflow)) ier = 4;
         //
         // append the newly-created intervals to the list.
         //
-        if (error2 > error1) goto label_20;
+        if (error2 > error1) goto LABEL_20;
         ARRAYF(alist, last)   = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist, last)   = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist, last)   = error2;
-        goto label_30;
-        label_20:
+        goto LABEL_30;
+LABEL_20:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist, last)   = a1;
         ARRAYF(blist, last)   = b1;
@@ -581,24 +542,24 @@ void dqagie(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with nrmax-th largest error estimate (to be bisected next).
         //
-        label_30:
+LABEL_30:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
-        if (errsum <= errbnd) goto label_115;
-        if (ier != 0)  goto label_100;
-        if (last == 2) goto label_80;
-        if (noext) goto label_90;
+        if (errsum <= errbnd) goto LABEL_115;
+        if (ier != 0)  goto LABEL_100;
+        if (last == 2) goto LABEL_80;
+        if (noext) goto LABEL_90;
         erlarg -= erlast;
         if (std::abs(b1 - a1) > small) erlarg += erro12;
-        if (extrap) goto label_40;
+        if (extrap) goto LABEL_40;
         // 
         // test whether the interval to be bisected next is the
         // smallest interval.
         // 
-        if(std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto label_90;
+        if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto LABEL_90;
         extrap = true;
         nrmax  = 2;
-        label_40:
-        if(ierro == 3 || erlarg <= ertest) goto label_60;
+LABEL_40:
+        if(ierro == 3 || erlarg <= ertest) goto LABEL_60;
         //
         // the smallest interval has the largest error.
         // before bisecting decrease the sum of the errors over the
@@ -606,105 +567,94 @@ void dqagie(QUADPACK_CPP_FUNCTION f,
         // 
         id     = nrmax;
         jupbnd = last;
-        if (last > (2 + limit/2)) jupbnd = limit + 3 - last;
+        if (last > (2 + limit / 2)) jupbnd = limit + 3 - last;
         for (k = id; k <= jupbnd; ++k) {
             maxerr = ARRAYF(iord, nrmax);
             errmax = ARRAYF(elist, maxerr);
-            if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto label_90;
-            nrmax += 1;
+            if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto LABEL_90;
+            nrmax++;
         }
         //
         // perform extrapolation.
         // 
-        label_60:
-        numrl2 += 1;
+LABEL_60:
+        numrl2++;
         ARRAYF(rlist2, numrl2) = area;
         dqelg(numrl2, rlist2, reseps, abseps, res3la, nres);
-        ktmin += 1;
-        if(ktmin > 5 && abserr < 1.0e-3*errsum) ier = 5;
-        if(abseps >= abserr) goto label_70;
+        ktmin++;
+        if(ktmin > 5 && abserr < 1.0e-3 * errsum) ier = 5;
+        if(abseps >= abserr) goto LABEL_70;
         ktmin  = 0;
         abserr = abseps;
         result = reseps;
         correc = erlarg;
-        ertest = std::max(epsabs, epsrel*std::abs(reseps));
-        if (abserr <= ertest) goto label_100;
+        ertest = std::max(epsabs, epsrel * std::abs(reseps));
+        if (abserr <= ertest) goto LABEL_100;
         //
         // prepare bisection of the smallest interval.
         // 
-        label_70:
+LABEL_70:
         if (numrl2 == 1) noext = true;
-        if (ier == 5) goto label_100;
+        if (ier == 5) goto LABEL_100;
         maxerr = ARRAYF(iord, 1);
         errmax = ARRAYF(elist, maxerr);
         nrmax  = 1;
         extrap = false;
-        small  = small*0.5;
+        small  = small * 0.5;
         erlarg = errsum;
-        goto label_90;
-        label_80:
+        goto LABEL_90;
+LABEL_80:
         small  = 0.375;
         erlarg = errsum;
         ertest = errbnd;
         ARRAYF(rlist2, 2) = area;
-        label_90:
+LABEL_90:
         continue;
     }
     //
     // set final result and error estimate.
     //
-    label_100:
-    if (abserr == oflow) goto label_115;
-    if ((ier + ierro) == 0) goto label_110;
+LABEL_100:
+    if (abserr == oflow) goto LABEL_115;
+    if (ier + ierro == 0) goto LABEL_110;
     if (ierro == 3) abserr += correc;
     if (ier == 0) ier = 3;
-    if (result != 0.0 && area != 0.0) goto label_105;
-    if (abserr > errsum) goto label_115;
-    if (area == 0.0) goto label_130;
-    goto label_110;
-    label_105:
-    if (abserr/std::abs(result) > errsum/std::abs(area)) goto label_115;
+    if (result != 0.0 && area != 0.0) goto LABEL_105;
+    if (abserr > errsum) goto LABEL_115;
+    if (area == 0.0) goto LABEL_130;
+    goto LABEL_110;
+LABEL_105:
+    if (abserr / std::abs(result) > errsum / std::abs(area)) goto LABEL_115;
     //
     // test on divergence.
     //
-    label_110:
-    if(ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= defabs*1.0e-2) goto label_130;
-    if(1.0e-2 > (result/area) || (result/area) > 1.0e2 || errsum > std::abs(area)) ier = 6;
-    goto label_130;
+LABEL_110:
+    if (ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= defabs * 1.0e-2) goto LABEL_130;
+    if (1.0e-2 > (result / area) || (result / area) > 1.0e2 || errsum > std::abs(area)) ier = 6;
+    goto LABEL_130;
     // 
     // compute global integral sum.
     //
-    label_115:
+LABEL_115:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_130:
-    neval = 30*last - 15;
-    if (inf == 2)  neval = 2*neval;
-    if (ier > 2) ier -= 1;
-    label_999:
+LABEL_130:
+    neval = 30 * last - 15;
+    if (inf == 2)  neval = 2 * neval;
+    if (ier > 2) ier--;
+LABEL_999:
     return;
 }
 
-void dqagp(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           const int npts2,
-           const double *points,
-           const double epsabs,
-           const double epsrel,
-           double &result,
-           double &abserr,
-           int &neval,
-           int &ier,
-           const int leniw,
-           const int lenw,
-           int &last,
-           int *iwork,
-           double *work,
-           void *data)
+/**
+ * @fn void dgagp
+*/
+void dqagp(QUADPACK_CPP_FUNCTION f, const double a, const double b, const int npts2, const double *points,
+           const double epsabs, const double epsrel, double &result, double &abserr, int &neval, int &ier,
+           const int leniw, const int lenw, int &last, int *iwork, double *work, void *user_data)
 {
     int limit, lvl, l1, l2, l3, l4;
     // first executable statement  dqagp
@@ -713,7 +663,7 @@ void dqagp(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if (leniw < (3*npts2 - 2) || lenw < (leniw*2 - npts2) || npts2 < 2) goto label_10;
+    if (leniw < (3*npts2 - 2) || lenw < (leniw*2 - npts2) || npts2 < 2) goto LABEL_10;
     //
     // prepare call for dqagpe.
     //
@@ -725,12 +675,12 @@ void dqagp(QUADPACK_CPP_FUNCTION f,
     //
     dqagpe(f , a, b, npts2, points, epsabs, epsrel, limit, result, abserr, 
         neval, ier, &ARRAYF(work, 1), &ARRAYF(work, l1), &ARRAYF(work, l2), &ARRAYF(work, l3) ,&ARRAYF(work, l4),
-        &ARRAYF(iwork, 1), &ARRAYF(iwork, l1), &ARRAYF(iwork, l2), last, data);
+        &ARRAYF(iwork, 1), &ARRAYF(iwork, l1), &ARRAYF(iwork, l2), last, user_data);
     //
     // call error handler if necessary.
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) lvl = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqagp";
@@ -739,49 +689,21 @@ void dqagp(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqagpe(QUADPACK_CPP_FUNCTION f,
-            double a,
-            double b,
-            const int npts2,
-            const double *points,
-            const double epsabs,
-            const double epsrel,
-            const int limit,
-            double &result,
-            double &abserr,
-            int &neval,
-            int &ier,
-            double *alist,
-            double *blist,
-            double *rlist,
-            double *elist,
-            double *pts,
-            int *iord,
-            int *level,
-            int *ndin,
-            int &last,
-            void *data)
+/**
+ * @fn void dgagpe
+*/
+void dqagpe(QUADPACK_CPP_FUNCTION f, const double a, const double b, const int npts2, const double *points,
+            const double epsabs, const double epsrel, const int limit, double &result, double &abserr, int &neval,
+            int &ier, double *alist, double *blist, double *rlist, double *elist, double *pts, int *iord,
+            int *level, int *ndin, int &last, void *user_data)
 {
-    double abseps, correc, defabs, dres, ertest, resa, reseps, Result,
-           res3la[3], sign, temp, resabs;
-    int i, id, ierro, ind1, ind2, ip1, iroff1, iroff2, iroff3, j, jlow, 
-        jupbnd, k, ksgn, ktmin, levcur, levmax, nint, nintp1, npts, nrmax;
-    double area1, a1, b1, defab1, error1;
-    double area2, a2, b2, defab2, error2;
-    double area12;
-    double erro12;
-    double rlist2[52];
-    double erlast;
-    double errsum;
-    double errbnd;
-    double area;
-    double erlarg;
-    double errmax;
-    bool extrap;
-    bool noext;
-    int maxerr;
-    int nres;
-    int numrl2;
+    int i, ip1, id, ierro, ind1, ind2, iroff1, iroff2, iroff3, j, jlow, jupbnd;
+    int k, ksgn, ktmin, L, levcur, levmax, maxerr, nint, nintp1, npts, nres, nrmax, numrl2;
+    bool extrap, noext;
+    double abseps, area, area1, area12, area2, a1, a2, b1, b2, correc;
+    double defabs, defab1, defab2, dres, erlarg, erlast, errbnd, errmax, error1;
+    double erro12, error2, errsum, ertest, resa, resabs, reseps, sign, temp;
+    double res3la[3], rlist2[52];
     double epmach, uflow, oflow;
     // first executable statement  dqagpe
     epmach = ARRAYF(d1mach, 4);
@@ -789,11 +711,11 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
     // test on validity of parameters
     // -----------------------------
     //
-    ier    = 0;
-    neval  = 0;
-    last   = 0;
-    result = 0.0;
-    abserr = 0.0;
+    ier              = 0;
+    neval            = 0;
+    last             = 0;
+    result           = 0.0;
+    abserr           = 0.0;
     ARRAYF(alist, 1) = a;
     ARRAYF(blist, 1) = b;
     ARRAYF(rlist, 1) = 0.0;
@@ -801,8 +723,8 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
     ARRAYF(iord,  1) = 0;
     ARRAYF(level, 1) = 0;
     npts = npts2 - 2;
-    if (npts2 < 2 || limit <= npts || (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29))) ier = 6;
-    if (ier == 6) goto label_999;
+    if (npts2 < 2 || limit <= npts || (epsabs <= 0.0 && epsrel < std::max(50.0 * epmach, 5.0e-29))) ier = 6;
+    if (ier == 6) goto LABEL_999;
     //
     // if any break points are provided, sort them into an
     // ascending sequence.
@@ -810,15 +732,15 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
     sign = 1.0;
     if (a > b) sign = -1.0;
     ARRAYF(pts, 1) = std::min(a, b);
-    if (npts == 0) goto label_15;
+    if (npts == 0) goto LABEL_15;
     for (i = 1; i <= npts; ++i) {
         ARRAYF(pts, i+1) = ARRAYF(points, i);
     }
-    label_15:
+LABEL_15:
     ARRAYF(pts, npts + 2) = std::max(a, b);
     nint = npts + 1;
     a1 = ARRAYF(pts, 1);
-    if (npts == 0) goto label_40;
+    if (npts == 0) goto LABEL_40;
     nintp1 = nint + 1;
     for (i = 1; i <= nint; ++i) {
         ip1 = i + 1;
@@ -830,33 +752,33 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
         }
     }
     if (ARRAYF(pts, 1) != std::min(a, b) || ARRAYF(pts, nintp1) != std::max(a, b)) ier = 6;
-    if (ier == 6) goto label_999;
+    if (ier == 6) goto LABEL_999;
     //
     // compute first integral and error approximations.
     // ------------------------------------------------
     //
-    label_40:
+LABEL_40:
     resabs = 0.0;
     for (i = 1; i <= nint; ++i) {
         b1 = ARRAYF(pts, i+1);
-        dqk21(f, a1, b1, area1, error1, defabs, resa, data);
-        abserr = abserr + error1;
-        result = result + area1;
-        ARRAYF(ndin, i) = 0;
+        dqk21(f, a1, b1, area1, error1, defabs, resa, user_data);
+        abserr          += error1;
+        result          += area1;
+        ARRAYF(ndin, i)  = 0;
         if(error1 == resa && error1 != 0.0) ARRAYF(ndin, i) = 1;
-        resabs = resabs + defabs;
+        resabs          += defabs;
         ARRAYF(level, i) = 0;
         ARRAYF(elist, i) = error1;
         ARRAYF(alist, i) = a1;
         ARRAYF(blist, i) = b1;
         ARRAYF(rlist, i) = area1;
         ARRAYF(iord,  i) = i;
-        a1 = b1;
+        a1               = b1;
     }
     errsum = 0.0;
     for (i = 1; i <= nint; ++i) {
         if (ARRAYF(ndin, i) == 1) ARRAYF(elist, i) = abserr;
-        errsum = errsum + ARRAYF(elist, i);
+        errsum += ARRAYF(elist, i);
     }
     //
     // test on accuracy.
@@ -864,9 +786,9 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
     last   = nint;
     neval  = 21 * nint;
     dres   = std::abs(result);
-    errbnd = std::max(epsabs, epsrel*dres);
-    if (abserr <= 1.0e2*epmach*resabs && abserr > errbnd) ier = 2;
-    if (nint == 1) goto label_80;
+    errbnd = std::max(epsabs, epsrel * dres);
+    if (abserr <= 1.0e2 * epmach * resabs && abserr > errbnd) ier = 2;
+    if (nint == 1) goto LABEL_80;
     for (i = 1; i <= npts; ++i) {
         jlow = i + 1;
         ind1 = ARRAYF(iord, i);
@@ -874,41 +796,41 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
             ind2 = ARRAYF(iord, j);
             if (ARRAYF(elist, ind1) > ARRAYF(elist, ind2)) continue;
             ind1 = ind2;
-            k = j;
+            k    = j;
         }
         if (ind1 == ARRAYF(iord, i)) continue;
         ARRAYF(iord, k) = ARRAYF(iord, i);
         ARRAYF(iord, i) = ind1;
     }
     if (limit < npts2) ier = 1;
-    label_80:
-    if (ier != 0 || abserr <= errbnd) goto label_210;
+LABEL_80:
+    if (ier != 0 || abserr <= errbnd) goto LABEL_210;
     //
     // initialization
     // --------------
     //
     ARRAYF(rlist2, 1) = result;
-    maxerr = ARRAYF(iord, 1);
-    errmax = ARRAYF(elist, maxerr);
-    area = result;
-    nrmax = 1;
-    nres = 0;
-    numrl2 = 1;
-    ktmin = 0;
-    extrap = false;
-    noext = false;
-    erlarg = errsum;
-    ertest = errbnd;
-    levmax = 1;
-    iroff1 = 0;
-    iroff2 = 0;
-    iroff3 = 0;
-    ierro = 0;
-    uflow = ARRAYF(d1mach, 1);
-    oflow = ARRAYF(d1mach, 2);
-    abserr = oflow;
-    ksgn = -1;
-    if (dres >= (1.0 - 50.0*epmach)*resabs) ksgn = 1;
+    maxerr            = ARRAYF(iord, 1);
+    errmax            = ARRAYF(elist, maxerr);
+    area              = result;
+    nrmax             = 1;
+    nres              = 0;
+    numrl2            = 1;
+    ktmin             = 0;
+    extrap            = false;
+    noext             = false;
+    erlarg            = errsum;
+    ertest            = errbnd;
+    levmax            = 1;
+    iroff1            = 0;
+    iroff2            = 0;
+    iroff3            = 0;
+    ierro             = 0;
+    uflow             = ARRAYF(d1mach, 1);
+    oflow             = ARRAYF(d1mach, 2);
+    abserr            = oflow;
+    ksgn              = -1;
+    if (dres >= (1.0 - 50.0 * epmach) * resabs) ksgn = 1;
     //
     // main for-loop
     // ------------
@@ -919,13 +841,13 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
         // estimate.
         //
         levcur = ARRAYF(level, maxerr) + 1;
-        a1 = ARRAYF(alist, maxerr);
-        b1 = 0.5 * (ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
-        a2 = b1;
-        b2 = ARRAYF(blist, maxerr);
+        a1     = ARRAYF(alist, maxerr);
+        b1     = 0.5 * (ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
+        a2     = b1;
+        b2     = ARRAYF(blist, maxerr);
         erlast = errmax;
-        dqk21(f, a1, b1, area1, error1, resa, defab1, data);
-        dqk21(f, a2, b2, area2, error2, resa, defab2, data);
+        dqk21(f, a1, b1, area1, error1, resa, defab1, user_data);
+        dqk21(f, a2, b2, area2, error2, resa, defab2, user_data);
         //
         // improve previous approximations to integral
         // and error and test for accuracy.
@@ -935,18 +857,18 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
         area   = area + area12 - ARRAYF(rlist, maxerr);
-        if (defab1 == error1 || defab2 == error2) goto label_95;
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5*std::abs(area12) || erro12 < 0.99*errmax) goto label_90;
-        if (extrap)  iroff2 = iroff2 + 1;
-        if (!extrap) iroff1 = iroff1 + 1;
-        label_90:
-        if (last > 10 && erro12 > errmax) iroff3 = iroff3 + 1;
-        label_95:
+        if (defab1 == error1 || defab2 == error2) goto LABEL_95;
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5 * std::abs(area12) || erro12 < 0.99 * errmax) goto LABEL_90;
+        if (extrap)  iroff2++;
+        if (!extrap) iroff1++;
+LABEL_90:
+        if (last > 10 && erro12 > errmax) iroff3++;
+LABEL_95:
         ARRAYF(level, maxerr) = levcur;
         ARRAYF(level, last)   = levcur;
         ARRAYF(rlist, maxerr) = area1;
         ARRAYF(rlist, last)   = area2;
-        errbnd = std::max(epsabs, epsrel*std::abs(area));
+        errbnd = std::max(epsabs, epsrel * std::abs(area));
         //
         // test for roundoff error and eventually set error flag.
         //
@@ -961,18 +883,18 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
         // set error flag in the case of bad integrand behaviour
         // at a point of the integration range
         //
-        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2*epmach)*(std::abs(a2) + 1.03*uflow)) ier = 4;
+        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2 * epmach) * (std::abs(a2) + 1.0e3 * uflow)) ier = 4;
         //
         // append the newly-created intervals to the list.
         //
-        if(error2 > error1) goto label_100;
+        if(error2 > error1) goto LABEL_100;
         ARRAYF(alist, last)   = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist, last)   = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist, last)   = error2;
-        goto label_110;
-        label_100:
+        goto LABEL_110;
+LABEL_100:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist, last)   = a1;
         ARRAYF(blist, last)   = b1;
@@ -985,25 +907,25 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with nrmax-th largest error estimate (to be bisected next).
         //
-        label_110:
+LABEL_110:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
         // jump out of for-loop
-        if (errsum <= errbnd) goto label_190;
+        if (errsum <= errbnd) goto LABEL_190;
         // jump out of for-loop
-        if (ier != 0) goto label_170;
-        if (noext) goto label_160;
-        erlarg = erlarg - erlast;
-        if (levcur + 1 <= levmax) erlarg = erlarg + erro12;
-        if (extrap) goto label_120;
+        if (ier != 0) goto LABEL_170;
+        if (noext) goto LABEL_160;
+        erlarg -= erlast;
+        if (levcur + 1 <= levmax) erlarg += erro12;
+        if (extrap) goto LABEL_120;
         //
         // test whether the interval to be bisected next is the
         // smallest interval.
         //
-        if (ARRAYF(level, maxerr) + 1 <= levmax) goto label_160;
+        if (ARRAYF(level, maxerr) + 1 <= levmax) goto LABEL_160;
         extrap = true;
-        nrmax = 2;
-        label_120:
-        if (ierro == 3 || erlarg <= ertest) goto label_140;
+        nrmax  = 2;
+LABEL_120:
+        if (ierro == 3 || erlarg <= ertest) goto LABEL_140;
         //
         // the smallest interval has the largest error.
         // before bisecting decrease the sum of the errors over
@@ -1011,46 +933,46 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
         //
         id     = nrmax;
         jupbnd = last;
-        if (last > (2 + limit/2)) jupbnd = limit + 3 - last;
+        if (last > (2 + limit / 2)) jupbnd = limit + 3 - last;
         for (k = id; k <= jupbnd; ++k) {
             maxerr = ARRAYF(iord, nrmax);
             errmax = ARRAYF(elist, maxerr);
             // jump out of do-loop
-            if (ARRAYF(level, maxerr) + 1 <= levmax) goto label_160;
+            if (ARRAYF(level, maxerr) + 1 <= levmax) goto LABEL_160;
             nrmax = nrmax+1;
         }
         //
         // perform extrapolation.
         //
-        label_140:
-        numrl2 = numrl2 + 1;
+LABEL_140:
+        numrl2++;
         ARRAYF(rlist2, numrl2) = area;
-        if (numrl2 <= 2) goto label_155;
+        if (numrl2 <= 2) goto LABEL_155;
         dqelg(numrl2, rlist2, reseps, abseps, res3la, nres);
         ktmin = ktmin + 1;
-        if (ktmin > 5 && abserr < 1.0e-3*errsum) ier = 5;
-        if (abseps >= abserr) goto label_150;
-        ktmin = 0;
+        if (ktmin > 5 && abserr < 1.0e-3 * errsum) ier = 5;
+        if (abseps >= abserr) goto LABEL_150;
+        ktmin  = 0;
         abserr = abseps;
         result = reseps;
         correc = erlarg;
-        ertest = std::max(epsabs, epsrel*std::abs(reseps));
+        ertest = std::max(epsabs, epsrel * std::abs(reseps));
         // jump out of do-loop
-        if (abserr < ertest) goto label_170;
+        if (abserr < ertest) goto LABEL_170;
         //
         // prepare bisection of the smallest interval.
         //
-        label_150:
+LABEL_150:
         if (numrl2 == 1) noext = true;
-        if(ier >= 5) goto label_170;
-        label_155:
+        if(ier >= 5) goto LABEL_170;
+LABEL_155:
         maxerr = ARRAYF(iord, 1);
         errmax = ARRAYF(elist, maxerr);
-        nrmax = 1;
+        nrmax  = 1;
         extrap = false;
-        levmax = levmax + 1;
+        levmax++;
         erlarg = errsum;
-        label_160:
+LABEL_160:
         continue;
     }
     //
@@ -1058,55 +980,46 @@ void dqagpe(QUADPACK_CPP_FUNCTION f,
     // ---------------------
     //
     //
-    label_170:
-    if (abserr == oflow) goto label_190;
-    if ((ier + ierro) == 0) goto label_180;
+LABEL_170:
+    if (abserr == oflow) goto LABEL_190;
+    if (ier + ierro == 0) goto LABEL_180;
     if (ierro == 3) abserr = abserr + correc;
     if (ier == 0) ier = 3;
-    if (result != 0.0 && area != 0.0) goto label_175;
-    if (abserr > errsum) goto label_190;
-    if (area == 0.0) goto label_210;
-    goto label_180;
-    label_175:
-    if (abserr/std::abs(result) > errsum/std::abs(area)) goto label_190;
+    if (result != 0.0 && area != 0.0) goto LABEL_175;
+    if (abserr > errsum) goto LABEL_190;
+    if (area == 0.0) goto LABEL_210;
+    goto LABEL_180;
+LABEL_175:
+    if (abserr / std::abs(result) > errsum / std::abs(area)) goto LABEL_190;
     //
     // test on divergence.
     //
-    label_180:
-    if(ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= resabs*1.0e-2) goto label_210;
+LABEL_180:
+    if(ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= resabs * 1.0e-2) goto LABEL_210;
     if (1.0e-2 > result/area || result/area > 1.0e2 || errsum > std::abs(area)) ier = 6;
-    goto label_210;
+    goto LABEL_210;
     //
     // compute global integral sum.
     //
-    label_190:
+LABEL_190:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_210:
+LABEL_210:
     if (ier > 2) ier -= 1;
     result *= sign;
-    label_999:
+LABEL_999:
     return;
 }
 
-void dqags(QUADPACK_CPP_FUNCTION f, 
-           const double a, 
-           const double b, 
-           const double epsabs, 
-           const double epsrel, 
-           double &result,
-           double &abserr, 
-           int &neval, 
-           int &ier,
-           const int limit, 
-           const int lenw, 
-           int &last, 
-           int *iwork,
-           double *work,
-           void *data)
+/**
+ * @fn void dgags
+*/
+void dqags(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double epsabs, const double epsrel, 
+           double &result, double &abserr, int &neval, int &ier, const int limit, const int lenw, int &last, 
+           int *iwork, double *work, void *user_data)
 {
     int lvl, l1, l2, l3;
     //
@@ -1118,7 +1031,7 @@ void dqags(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if (limit < 1 || lenw < 4*limit) goto label_10;
+    if (limit < 1 || lenw < 4*limit) goto LABEL_10;
     //
     // prepare call for dqagse.
     //
@@ -1127,12 +1040,12 @@ void dqags(QUADPACK_CPP_FUNCTION f,
     l3 = limit + l2;
     //
     dqagse(f, a, b, epsabs, epsrel, limit, result, abserr, neval, ier,
-        &ARRAYF(work, 1), &ARRAYF(work, l1), &ARRAYF(work, l2), &ARRAYF(work, l3), iwork, last, data);
+        &ARRAYF(work, 1), &ARRAYF(work, l1), &ARRAYF(work, l2), &ARRAYF(work, l3), iwork, last, user_data);
     //
     // call error handler if necessary.
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) lvl = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqags";
@@ -1141,62 +1054,37 @@ void dqags(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-
-void dqagse(QUADPACK_CPP_FUNCTION f, 
-            const double a, 
-            const double b, 
-            const double epsabs, 
-            const double epsrel, 
-            const int limit, 
-            double &result, 
-            double &abserr, 
-            int &neval,
-            int &ier, 
-            double *alist, 
-            double *blist,
-            double *rlist, 
-            double *elist, 
-            int *iord, 
-            int &last,
-            void *data) 
+/**
+ * @fn void dgagse
+*/
+void dqagse(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double epsabs, const double epsrel, 
+            const int limit, double &result, double &abserr, int &neval, int &ier, double *alist, double *blist,
+            double *rlist, double *elist, int *iord, int &last, void *user_data)
 {
-    double abseps, correc, defabs, dres, ertest, resabs, reseps, res3la[3];
+    int id, ierro, iroff1, iroff2, iroff3, k, ksgn, ktmin, maxerr, nres, nrmax, numrl2;
+    bool noext, extrap;
+    double a1, a2, area, area1, area12, area2, b1, b2, defab1, defab2, defabs;
+    double dres, erlarg, erlast, errbnd, errmax, error1, erro12, error2, errsum;
+    double ertest, small, jupbnd, correc, resabs, reseps, abseps;
+    double res3la[3], rlist2[52];
     double uflow, oflow, epmach;
-    int id, ierro, iroff1, iroff2, iroff3, jupbnd, k, ksgn, ktmin, nrmax;
-    double area12;
-    double erro12;
-    double area1, a1, b1, defab1, error1;
-    double area2, a2, b2, defab2, error2;
-    double rlist2[52];
-    int maxerr;
-    int nres;
-    int numrl2;
-    double errmax;
-    double erlast;
-    double area;
-    double errsum;
-    double errbnd;
-    double small;
-    double erlarg;
-    bool extrap;
-    bool noext;
     // first executable statement  dqagse
     epmach = ARRAYF(d1mach, 4);
     //
     // test on validity of parameters
     // ------------------------------
     //
-    ier    = 0;
-    neval  = 0;
-    last   = 0;
-    result = 0.0;
-    abserr = 0.0;
+    ier              = 0;
+    neval            = 0;
+    last             = 0;
+    result           = 0.0;
+    abserr           = 0.0;
     ARRAYF(alist, 1) = a;
     ARRAYF(blist, 1) = b;
     ARRAYF(rlist, 1) = 0.0;
     ARRAYF(elist, 1) = 0.0;
-    if (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29)) ier = 6;
-    if (ier == 6) goto label_999;
+    if (epsabs <= 0.0 && epsrel < std::max(50.0 * epmach, 5.0e-29)) ier = 6;
+    if (ier == 6) goto LABEL_999;
     // 
     // first approximation to the integral
     // -----------------------------------
@@ -1204,19 +1092,19 @@ void dqagse(QUADPACK_CPP_FUNCTION f,
     uflow = ARRAYF(d1mach, 1);
     oflow = ARRAYF(d1mach, 2);
     ierro = 0;
-    dqk21(f, a, b, result, abserr, defabs, resabs, data);
+    dqk21(f, a, b, result, abserr, defabs, resabs, user_data);
     // 
     // test on accuracy
     // 
-    dres   = std::abs(result);
-    errbnd = std::max(epsabs, epsrel*dres);
-    last   = 1;
+    dres             = std::abs(result);
+    errbnd           = std::max(epsabs, epsrel * dres);
+    last             = 1;
     ARRAYF(rlist, 1) = result;
     ARRAYF(elist, 1) = abserr;
     ARRAYF(iord,  1) = 1;
-    if (abserr <= 1.0e2*epmach*defabs && abserr > errbnd) ier = 2;
+    if (abserr <= 1.0e2 * epmach * defabs && abserr > errbnd) ier = 2;
     if (limit == 1) ier = 1;
-    if (ier != 0 || (abserr <= errbnd && abserr != resabs) || abserr == 0.0) goto label_140;
+    if (ier != 0 || (abserr <= errbnd && abserr != resabs) || abserr == 0.0) goto LABEL_140;
     //
     // initialization
     // --------------
@@ -1237,41 +1125,41 @@ void dqagse(QUADPACK_CPP_FUNCTION f,
     iroff2 = 0;
     iroff3 = 0;
     ksgn   = -1;
-    if (dres >= (1.0 - 50.0*epmach)*defabs) ksgn = 1;
+    if (dres >= (1.0 - 50.0 * epmach) * defabs) ksgn = 1;
     //
     // main for-loop
     // ---------
     //
-    for (last = 2; last <= limit; ++last) { // label_90
+    for (last = 2; last <= limit; ++last) {
         //
         // bisect the subinterval with the nrmax-th largest error 
         // estimate.
         //
         a1 = ARRAYF(alist, maxerr);
-        b1 = 0.5*(ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
+        b1 = 0.5 * (ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
         a2 = b1;
         b2 = ARRAYF(blist, maxerr);
         erlast = errmax;
-        dqk21(f, a1, b1, area1, error1, resabs, defab1, data);
-        dqk21(f, a2, b2, area2, error2, resabs, defab2, data);
+        dqk21(f, a1, b1, area1, error1, resabs, defab1, user_data);
+        dqk21(f, a2, b2, area2, error2, resabs, defab2, user_data);
         // 
         // improve previous approximations to integral 
         // and error and test for accuracy.
         //
-        area12 = area1 + area2;
+        area12 = area1  + area2;
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
-        area   = area + area12 - ARRAYF(rlist, maxerr);
-        if (defab1 == error1 || defab2 == error2) goto label_15;
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5*std::abs(area12) || erro12 < 0.99*errmax) goto label_10;
-        if (extrap)  iroff2 += 1;
-        if (!extrap) iroff1 += 1;
-        label_10:
-        if (last > 10 && erro12 > errmax) iroff3 += 1;
-        label_15:
+        area   = area   + area12 - ARRAYF(rlist, maxerr);
+        if (defab1 == error1 || defab2 == error2) goto LABEL_15;
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5 * std::abs(area12) || erro12 < 0.99 * errmax) goto LABEL_10;
+        if (extrap)  iroff2++;
+        if (!extrap) iroff1++;
+LABEL_10:
+        if (last > 10 && erro12 > errmax) iroff3++;
+LABEL_15:
         ARRAYF(rlist, maxerr) = area1;
         ARRAYF(rlist, last)   = area2;
-        errbnd = std::max(epsabs, epsrel*std::abs(area));
+        errbnd                = std::max(epsabs, epsrel * std::abs(area));
         // 
         // test for roundoff error and eventually set error flag.
         //
@@ -1286,18 +1174,18 @@ void dqagse(QUADPACK_CPP_FUNCTION f,
         // set error flag in the case of bad integrand behaviour 
         // at a point of the integration range.
         //
-        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2*epmach)*(std::abs(a2) + 1.0e3*uflow)) ier = 4;
+        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2 * epmach) * (std::abs(a2) + 1.0e3 * uflow)) ier = 4;
         //
         // append the newly-created intervals to the list.
         //
-        if (error2 > error1) goto label_20;
+        if (error2 > error1) goto LABEL_20;
         ARRAYF(alist, last)   = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist, last)   = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist, last)   = error2;
-        goto label_30;
-        label_20:
+        goto LABEL_30;
+LABEL_20:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist, last)   = a1;
         ARRAYF(blist, last)   = b1;
@@ -1310,26 +1198,26 @@ void dqagse(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with nrmax-th largest error estimate (to be bisected next).
         //
-        label_30:
+LABEL_30:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
         // jump out of for-loop
-        if (errsum <= errbnd) goto label_115;
+        if (errsum <= errbnd) goto LABEL_115;
         // jump out of for-loop
-        if (ier != 0)  goto label_100;
-        if (last == 2) goto label_80;
-        if (noext) goto label_90;
+        if (ier != 0)  goto LABEL_100;
+        if (last == 2) goto LABEL_80;
+        if (noext) goto LABEL_90;
         erlarg -= erlast;
         if (std::abs(b1-a1) > small) erlarg += erro12;
-        if (extrap) goto label_40;
+        if (extrap) goto LABEL_40;
         // 
         // test whether the interval to be bisected next is the
         // smallest interval.
         // 
-        if(std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto label_90;
+        if(std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto LABEL_90;
         extrap = true;
         nrmax  = 2;
-        label_40:
-        if(ierro == 3 || erlarg <= ertest) goto label_60;
+LABEL_40:
+        if(ierro == 3 || erlarg <= ertest) goto LABEL_60;
         //
         // the smallest interval has the largest error.
         // before bisecting decrease the sum of the errors over the
@@ -1337,106 +1225,93 @@ void dqagse(QUADPACK_CPP_FUNCTION f,
         // 
         id     = nrmax;
         jupbnd = last;
-        if (last > (2 + limit/2)) jupbnd = limit + 3 - last;
+        if (last > (2 + limit / 2)) jupbnd = limit + 3 - last;
         for (k = id; k <= jupbnd; ++k) {
             maxerr = ARRAYF(iord, nrmax);
             errmax = ARRAYF(elist, maxerr);
             // jump out of for-loop
-            if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto label_90;
+            if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto LABEL_90;
             nrmax += 1;
         }
         //
         // perform extrapolation.
         // 
-        label_60:
-        numrl2 += 1;
+LABEL_60:
+        numrl2++;
         ARRAYF(rlist2, numrl2) = area;
         dqelg(numrl2, rlist2, reseps, abseps, res3la, nres);
-        ktmin += 1;
-        if(ktmin > 5 && abserr < 1.0e-3*errsum) ier = 5;
-        if(abseps >= abserr) goto label_70;
+        ktmin++;
+        if(ktmin > 5 && abserr < 1.0e-3 * errsum) ier = 5;
+        if(abseps >= abserr) goto LABEL_70;
         ktmin  = 0;
         abserr = abseps;
         result = reseps;
         correc = erlarg;
-        ertest = std::max(epsabs, epsrel*std::abs(reseps));
+        ertest = std::max(epsabs, epsrel * std::abs(reseps));
         // jump out of for-loop
-        if (abserr <= ertest) goto label_100;
+        if (abserr <= ertest) goto LABEL_100;
         //
         // prepare bisection of the smallest interval.
         // 
-        label_70:
+LABEL_70:
         if (numrl2 == 1) noext = true;
-        if (ier == 5) goto label_100;
+        if (ier == 5) goto LABEL_100;
         maxerr = ARRAYF(iord, 1);
         errmax = ARRAYF(elist, maxerr);
         nrmax  = 1;
         extrap = false;
         small  = small*0.5;
         erlarg = errsum;
-        goto label_90;
-        label_80:
-        small  = std::abs(b - a)*0.375;
+        goto LABEL_90;
+LABEL_80:
+        small  = std::abs(b - a) * 0.375;
         erlarg = errsum;
         ertest = errbnd;
         ARRAYF(rlist2, 2) = area;
-        label_90:
+LABEL_90:
         continue;
     }
     //
     // set final result and error estimate.
     //
-    label_100:
-    if (abserr == oflow) goto label_115;
-    if ((ier + ierro) == 0) goto label_110;
+LABEL_100:
+    if (abserr == oflow) goto LABEL_115;
+    if (ier + ierro == 0) goto LABEL_110;
     if (ierro == 3) abserr += correc;
     if (ier == 0) ier = 3;
-    if (result != 0.0 && area != 0.0) goto label_105;
-    if (abserr > errsum) goto label_115;
-    if (area == 0.0) goto label_130;
-    goto label_110;
-    label_105:
-    if (abserr/std::abs(result) > errsum/std::abs(area)) goto label_115;
+    if (result != 0.0 && area != 0.0) goto LABEL_105;
+    if (abserr > errsum) goto LABEL_115;
+    if (area == 0.0) goto LABEL_130;
+    goto LABEL_110;
+LABEL_105:
+    if (abserr / std::abs(result) > errsum / std::abs(area)) goto LABEL_115;
     //
     // test on divergence.
     //
-    label_110:
-    if(ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= defabs*1.0e-2) goto label_130;
+LABEL_110:
+    if(ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= defabs * 1.0e-2) goto LABEL_130;
     if(1.0e-2 > (result/area) || (result/area) > 1.0e2 || errsum > std::abs(area)) ier = 6;
-    goto label_130;
+    goto LABEL_130;
     // 
     // compute global integral sum.
     //
-    label_115:
+LABEL_115:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_130:
+LABEL_130:
     if(ier > 2) ier -= 1;
-    label_140:
-    neval = 42*last - 21;
-    label_999:
+LABEL_140:
+    neval = 42 * last - 21;
+LABEL_999:
     return;
 }
 
-void dqawc(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           const double c,
-           const double epsabs,
-           const double epsrel,
-           double &result,
-           double &abserr,
-           int &neval,
-           int &ier,
-           const int limit,
-           const int lenw,
-           int &last,
-           int *iwork,
-           double *work,
-           void *data)
+void dqawc(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double c, const double epsabs, const double epsrel,
+           double &result, double &abserr, int &neval, int &ier, const int limit, const int lenw, int &last, int *iwork,
+           double *work, void *user_data)
 {
     int lvl, l1, l2, l3;
     // first executable statement  dqawc
@@ -1445,7 +1320,7 @@ void dqawc(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if(limit < 1 || lenw < limit*4) goto label_10;
+    if(limit < 1 || lenw < limit*4) goto LABEL_10;
     //
     // prepare call for dqawce.
     //
@@ -1453,12 +1328,12 @@ void dqawc(QUADPACK_CPP_FUNCTION f,
     l2 = limit + l1;
     l3 = limit + l2;
     dqawce(f, a, b, c, epsabs, epsrel, limit, result, abserr, neval, ier,
-        &ARRAYF(work,1 ), &ARRAYF(work,l1), &ARRAYF(work, l2), &ARRAYF(work, l3), iwork, last, data);
+        &ARRAYF(work,1 ), &ARRAYF(work,l1), &ARRAYF(work, l2), &ARRAYF(work, l3), iwork, last, user_data);
     //
     // call error handler if necessary.
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) ier = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqawc";
@@ -1467,36 +1342,14 @@ void dqawc(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqawce(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double b,
-            const double c,
-            const double epsabs,
-            const double epsrel,
-            const int limit,
-            double &result,
-            double &abserr,
-            int &neval,
-            int &ier,
-            double *alist,
-            double *blist,
-            double *rlist,
-            double *elist,
-            int *iord,
-            int &last,
-            void *data)
+void dqawce(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double c, const double epsabs, const double epsrel,
+            const int limit, double &result, double &abserr, int &neval, int &ier, double *alist, double *blist, double *rlist,
+            double *elist, int *iord, int &last, void *user_data)
 {
-    double aa, bb, epmach, uflow;
-    int iroff1, iroff2, k, krule, nev, nrmax;
-    double area1, a1, b1, error1;
-    double area2, a2, b2, error2;
-    double area12;
-    double erro12;
-    double errmax;
-    double area;
-    double errsum;
-    double errbnd;
-    int maxerr;
+    int iroff1, iroff2, k, krule, L, maxerr, nev, nrmax;
+    double a1, a2, aa, area, area1, area12, area2, b1, b2, bb, errbnd, errmax;
+    double error1, erro12, error2, errsum;
+    double epmach, uflow;
     // first executable statement  dqawce
     epmach = ARRAYF(d1mach, 4);
     uflow  = ARRAYF(d1mach, 1);
@@ -1505,31 +1358,31 @@ void dqawce(QUADPACK_CPP_FUNCTION f,
     // test on validity of parameters
     // ------------------------------
     //
-    ier = 6;
-    neval = 0;
-    last = 0;
+    ier              = 6;
+    neval            = 0;
+    last             = 0;
     ARRAYF(alist, 1) = a;
     ARRAYF(blist, 1) = b;
     ARRAYF(rlist, 1) = 0.0;
     ARRAYF(elist, 1) = 0.0;
     ARRAYF(iord,  1) = 0;
-    result = 0.0;
-    abserr = 0.0;
-    if(c == a || c== b || (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29))) goto label_999;
+    result           = 0.0;
+    abserr          = 0.0;
+    if (c == a || c == b || (epsabs <= 0.0 && epsrel < std::max(50.0 * epmach, 5.0e-29))) goto LABEL_999;
     //
     // first approximation to the integral
     // -----------------------------------
     //
-    aa = a;
-    bb = b;
-    if (a <= b) goto label_10;
-    aa = b;
-    bb = a;
-    label_10:
-    ier = 0;
+    aa    = a;
+    bb    = b;
+    if (a <= b) goto LABEL_10;
+    aa    = b;
+    bb    = a;
+    LABEL_10:
+    ier   = 0;
     krule = 1;
-    dqc25c(f, aa, bb, c, result, abserr, krule, neval, data);
-    last = 1;
+    dqc25c(f, aa, bb, c, result, abserr, krule, neval, user_data);
+    last  = 1;
     ARRAYF(rlist, 1) = result;
     ARRAYF(elist, 1) = abserr;
     ARRAYF(iord,  1) = 1;
@@ -1538,9 +1391,9 @@ void dqawce(QUADPACK_CPP_FUNCTION f,
     //
     // test on accuracy
     //
-    errbnd = std::max(epsabs, epsrel*std::abs(result));
+    errbnd = std::max(epsabs, epsrel * std::abs(result));
     if(limit == 1) ier = 1;
-    if(abserr < std::min(1.0e-2*std::abs(result), errbnd) || ier == 1) goto label_70;
+    if(abserr < std::min(1.0e-2 * std::abs(result), errbnd) || ier == 1) goto LABEL_70;
     //
     // initialization
     // --------------
@@ -1550,9 +1403,9 @@ void dqawce(QUADPACK_CPP_FUNCTION f,
     ARRAYF(rlist, 1) = result;
     errmax = abserr;
     maxerr = 1;
-    area = result;
+    area   = result;
     errsum = abserr;
-    nrmax = 1;
+    nrmax  = 1;
     iroff1 = 0;
     iroff2 = 0;
     //
@@ -1571,46 +1424,51 @@ void dqawce(QUADPACK_CPP_FUNCTION f,
         if (c > b1  && c < b2) b1 = 0.5 * (a1 + c);
         a2 = b1;
         krule = 2;
-        dqc25c(f, a1, b1, c, area1, error1, krule, nev, data);
-        neval = neval + nev;
-        dqc25c(f, a2, b2, c, area2, error2, krule, nev, data);
-        neval = neval + nev;
+        dqc25c(f, a1, b1, c, area1, error1, krule, nev, user_data);
+        neval += nev;
+        dqc25c(f, a2, b2, c, area2, error2, krule, nev, user_data);
+        neval += nev;
         //
         // improve previous approximations to integral
         // and error and test for accuracy.
         //
-        area12 = area1 + area2;
+        area12 = area1  + area2;
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
-        area   = area + area12 - ARRAYF(rlist, maxerr);
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) < 1.0e-5*std::abs(area12) 
-           && erro12 >= 0.99*errmax && krule == 0) iroff1 = iroff1 + 1;
-        if (last > 10 && erro12 > errmax && krule == 0) iroff2 = iroff2 + 1;
+        area   = area   + area12 - ARRAYF(rlist, maxerr);
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) < 1.0e-5 * std::abs(area12) 
+           && erro12 >= 0.99 * errmax && krule == 0) iroff1++;
+        if (last > 10 && erro12 > errmax && krule == 0) iroff2++;
         ARRAYF(rlist, maxerr) = area1;
-        ARRAYF(rlist, last)   = area2;
-        errbnd = std::max(epsabs, epsrel*std::abs(area));
-        if (errsum <= errbnd) goto label_15;
+        ARRAYF(rlist,   last) = area2;
+        errbnd = std::max(epsabs, epsrel * std::abs(area));
+        if (errsum <= errbnd) goto LABEL_15;
         //
         // test for roundoff error and eventually set error flag.
         //
         if (iroff1 >= 6 && iroff2 > 20) ier = 2;
         //
+        // set error flag in the case that number of interval
+        // bisections exceeds limit.
+        //
+        if (last == limit) ier = 1;
+        //
         // set error flag in the case of bad integrand behaviour
         // at a point of the integration range.
         //
-        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2*epmach)*(std::abs(a2) + 1.0e3*uflow)) ier = 3;
+        if (std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2 * epmach) * (std::abs(a2) + 1.0e3 * uflow)) ier = 3;
         //
         // append the newly-created intervals to the list.
         //
-        label_15:
-        if(error2 > error1) goto label_20;
+LABEL_15:
+        if(error2 > error1) goto LABEL_20;
         ARRAYF(alist, last)   = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist, last)   = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist, last)   = error2;
-        goto label_30;
-        label_20:
+        goto LABEL_30;
+LABEL_20:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist, last)   = a1;
         ARRAYF(blist, last)   = b1;
@@ -1623,44 +1481,30 @@ void dqawce(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with nrmax-th largest error estimate (to be bisected next).
         //
-        label_30:
+LABEL_30:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
         // jump out of for-loop
-        if(ier != 0 || errsum <= errbnd) goto label_50;
+        if(ier != 0 || errsum <= errbnd) goto LABEL_50;
     }
     //
     // compute final result.
     // ---------------------
     //
-    label_50:
+LABEL_50:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_70:
+LABEL_70:
     if (aa == b) result = -result;
-    label_999:
+LABEL_999:
     return;
 }
 
-void dqawf(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double omega,
-           const int integr,
-           const double epsabs,
-           double &result,
-           double &abserr,
-           int &neval,
-           int &ier,
-           const int limlst,
-           int &lst,
-           const int leniw,
-           const int maxp1,
-           const int lenw,
-           int *iwork,
-           double *work,
-           void *data)
+void dqawf(QUADPACK_CPP_FUNCTION f, const double a, const double omega, const int integr, const double epsabs, double &result,
+           double &abserr, int &neval, int &ier, const int limlst, int &lst, const int leniw, const int maxp1, const int lenw,
+           int *iwork, double *work, void *user_data)
 {
     int last, limit, ll2, lvl, l1, l2, l3, l4, l5, l6;
     // first executable statement  dqawf
@@ -1669,7 +1513,7 @@ void dqawf(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if (limlst < 3 || leniw < limlst + 2 || maxp1 < 1 || lenw < (leniw*2 + maxp1*25)) goto label_10;
+    if (limlst < 3 || leniw < limlst + 2 || maxp1 < 1 || lenw < (leniw*2 + maxp1*25)) goto LABEL_10;
     //
     // prepare call for dqawfe
     //
@@ -1684,12 +1528,12 @@ void dqawf(QUADPACK_CPP_FUNCTION f,
     dqawfe(f, a, omega, integr, epsabs, limlst, limit, maxp1, result, abserr, neval, ier,
         &ARRAYF(work, 1), &ARRAYF(work, l1), &ARRAYF(iwork, 1), lst, &ARRAYF(work, l2),
         &ARRAYF(work,l3), &ARRAYF(work, l4) ,&ARRAYF(work, l5), &ARRAYF(iwork, l1), &ARRAYF(iwork, ll2), &ARRAYF(work, l6),
-        data);
+        user_data);
     //
     // call error handler if necessary
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) ier = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqawf";
@@ -1698,40 +1542,18 @@ void dqawf(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqawfe(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double omega,
-            const int integr,
-            const double epsabs,
-            const int limlst,
-            const int limit,
-            const int maxp1,
-            double &result,
-            double &abserr,
-            int &neval,
-            int &ier,
-            double *rslst,
-            double *erlst,
-            int *ierlst,
-            int &lst,
-            double *alist,
-            double *blist,
-            double *rlist,
-            double *elist,
-            int *iord,
-            int *nnlog,
-            double *chebmo, // **chebmo
-            void *data)
+void dqawfe(QUADPACK_CPP_FUNCTION f, const double a, const double omega, const int integr, const double epsabs, const int limlst,
+            const int limit, const int maxp1, double &result, double &abserr, int &neval, int &ier, double *rslst, double *erlst,
+            int *ierlst, int &lst, double *alist, double *blist, double *rlist, double *elist, int *iord, int *nnlog, double *chebmo, 
+            void *user_data)
 {
-    double abseps, correc, dl, dla, drl, ep, eps, fact, p1, reseps, res3la[3];
-    int ktmin, l, last, ll, momcom, nev, nres, numrl2;
-    double psum[52];
-    double c1, c2;
-    double cycle;
-    double errsum;
-    double epsa;
-    double uflow;
+    int ktmin, l, last, ll, iter, momcom, nev, nres, numrl2;
+    double abseps, correc, cycle, c1, c2, dl, drl, ep, eps, epsa;
+    double errsum, fact, p1, reseps;
+    double psum[52], res3la[3];
     const double p = 0.9;
+    const double pi = M_PI;
+    double uflow;
     //
     // test on validity of parameters
     // ------------------------------
@@ -1743,27 +1565,27 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
     lst    = 0;
     ier    = 0;
     if ((integr != 1 && integr != 2) || epsabs <= 0.0 || limlst < 3) ier = 6;
-    if (ier == 6) goto label_999;
-    if (omega != 0.0) goto label_10;
+    if (ier == 6) goto LABEL_999;
+    if (omega != 0.0) goto LABEL_10;
     //
     // integration by dqagie if omega is zero
     // --------------------------------------
     //
     if(integr == 1) dqagie(f, 0.0, 1, epsabs, 0.0,limit, result, abserr, neval, ier,
-                        alist, blist, rlist, elist, iord, last, data);
+                        alist, blist, rlist, elist, iord, last, user_data);
     ARRAYF(rslst,  1) = result;
     ARRAYF(erlst,  1) = abserr;
     ARRAYF(ierlst, 1) = ier;
     lst               = 1;
-    goto label_999;
+    goto LABEL_999;
     //
     // initializations
     // ---------------
     //
-    label_10:
-    l      = std::abs(omega);
-    dl     = 2*l + 1;
-    cycle  = dl * M_PI / std::abs(omega);
+LABEL_10:
+    l      = static_cast<int>(std::abs(omega));
+    dl     = 2 * static_cast<double>(l) + 1;
+    cycle  = dl * pi / std::abs(omega);
     ier    = 0;
     ktmin  = 0;
     neval  = 0;
@@ -1774,12 +1596,13 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
     p1     = 1.0 - p;
     uflow  = ARRAYF(d1mach, 1);
     eps    = epsabs;
-    if(epsabs > uflow/p1) eps = epsabs*p1;
+    if(epsabs > uflow/p1) eps = epsabs * p1;
     ep     = eps;
     fact   = 1.0;
     correc = 0.0;
     abserr = 0.0;
     errsum = 0.0;
+    ll     = 0;
     //
     // main for-loop
     // -------------
@@ -1788,11 +1611,10 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
         //
         // integrate over current subinterval.
         //
-        dla  = lst;
         epsa = eps * fact;
         dqawoe(f, c1, c2, omega, integr, epsa, 0.0, limit, lst, maxp1,
             ARRAYF(rslst, lst), ARRAYF(erlst, lst), nev, ARRAYF(ierlst, lst), 
-            last, alist, blist, rlist, elist, iord, nnlog, momcom, chebmo, data);
+            last, alist, blist, rlist, elist, iord, nnlog, momcom, chebmo, user_data);
         neval  += nev;
         fact   *= p;
         errsum += ARRAYF(erlst, lst);
@@ -1800,18 +1622,18 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
         //
         // test on accuracy with partial sum
         //
-        if (errsum + drl <= epsabs && lst >= 6) goto label_80;
+        if (errsum + drl <= epsabs && lst >= 6) goto LABEL_80;
         correc = std::max(correc, ARRAYF(erlst, lst));
         if (ARRAYF(ierlst, lst) != 0) eps = std::max(ep, correc * p1);
         if (ARRAYF(ierlst, lst) != 0) ier = 7;
-        if (ier == 7 && errsum + drl <= 10.0*correc && lst > 5) goto label_80;
-        numrl2 += 1;
-        if (lst > 1) goto label_20;
+        if (ier == 7 && errsum + drl <= 10.0 * correc && lst > 5) goto LABEL_80;
+        numrl2++;
+        if (lst > 1) goto LABEL_20;
         ARRAYF(psum, 1) = ARRAYF(rslst, 1);
-        goto label_40;
-        label_20:
+        goto LABEL_40;
+LABEL_20:
         ARRAYF(psum, numrl2) = ARRAYF(psum, ll) + ARRAYF(rslst, lst);
-        if(lst == 2) goto label_40;
+        if(lst == 2) goto LABEL_40;
         //
         // test on maximum number of subintervals
         //
@@ -1823,9 +1645,9 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
         //
         // test whether extrapolated result is influenced by roundoff
         //
-        ktmin += 1;
-        if (ktmin >= 15 && abserr <= 1.0e-3*(errsum + drl)) ier = 4;
-        if (abseps > abserr && lst != 3) goto label_30;
+        ktmin++;
+        if (ktmin >= 15 && abserr <= 1.0e-3 * (errsum + drl)) ier = 4;
+        if (abseps > abserr && lst != 3) goto LABEL_30;
         abserr = abseps;
         result = reseps;
         ktmin  = 0;
@@ -1834,10 +1656,10 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
         // or extrapolated result yields the best integral
         // approximation
         // 
-        if ((abserr + 10.0*correc) <= epsabs || (abserr <= epsabs && 10.0*correc >= epsabs)) goto label_60;
-        label_30:
-        if (ier != 0 && ier != 7) goto label_60;
-        label_40:
+        if ((abserr + 10.0 * correc) <= epsabs || (abserr <= epsabs && 10.0*correc >= epsabs)) goto LABEL_60;
+LABEL_30:
+        if (ier != 0 && ier != 7) goto LABEL_60;
+LABEL_40:
         ll  = numrl2;
         c1  = c2;
         c2 += cycle;
@@ -1846,42 +1668,27 @@ void dqawfe(QUADPACK_CPP_FUNCTION f,
     // set final result and error estimate
     // -----------------------------------
     //
-    label_60:
-    abserr = abserr + 10.0 * correc;
-    if (ier == 0) goto label_999;
-    if (result != 0.0 && ARRAYF(psum, numrl2) != 0.0) goto label_70;
-    if (abserr > errsum) goto label_80;
-    if (ARRAYF(psum, numrl2) == 0.0) goto label_999;
-    label_70:
-    if (abserr/std::abs(result) > (errsum + drl)/std::abs(ARRAYF(psum, numrl2))) goto label_80;
-    if (ier >= 1 && ier != 7) abserr = abserr + drl;
-    goto label_999;
-    label_80:
+LABEL_60:
+    abserr += 10.0 * correc;
+    if (ier == 0) goto LABEL_999;
+    if (result != 0.0 && ARRAYF(psum, numrl2) != 0.0) goto LABEL_70;
+    if (abserr > errsum) goto LABEL_80;
+    if (ARRAYF(psum, numrl2) == 0.0) goto LABEL_999;
+LABEL_70:
+    if (abserr / std::abs(result) > (errsum + drl) / std::abs(ARRAYF(psum, numrl2))) goto LABEL_80;
+    if (ier >= 1 && ier != 7) abserr += drl;
+    goto LABEL_999;
+LABEL_80:
     result = ARRAYF(psum, numrl2);
     abserr = errsum + drl;
-    label_999:
+LABEL_999:
     return;
 }
 
 
-void dqawo(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           const double omega,
-           const int integr,
-           const double epsabs,
-           const double epsrel,
-           double &result,
-           double &abserr,
-           int &neval,
-           int &ier,
-           const int leniw,
-           const int maxp1,
-           const int lenw,
-           int &last,
-           int *iwork,
-           double *work,
-           void *data)
+void dqawo(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double omega, const int integr, const double epsabs, 
+           const double epsrel, double &result, double &abserr, int &neval, int &ier, const int leniw, const int maxp1, const int lenw,
+           int &last, int *iwork, double *work, void *user_data)
 {
     int limit, lvl, l1, l2, l3, l4, momcom;
     // first executable statement  dqawo
@@ -1890,7 +1697,7 @@ void dqawo(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if (leniw < 2 || maxp1 < 1 || lenw < (leniw*2 + maxp1*25)) goto label_10;
+    if (leniw < 2 || maxp1 < 1 || lenw < (leniw*2 + maxp1*25)) goto LABEL_10;
     //
     // prepare call for dqawoe
     //
@@ -1901,12 +1708,12 @@ void dqawo(QUADPACK_CPP_FUNCTION f,
     l4    = limit + l3;
     dqawoe(f, a, b, omega, integr, epsabs, epsrel, limit, 1 ,maxp1, result, abserr, neval, ier, last,
         &ARRAYF( work, 1), &ARRAYF( work, l1), &ARRAYF(work, l2), &ARRAYF(work, l3), 
-        &ARRAYF(iwork, 1), &ARRAYF(iwork, l1), momcom, &ARRAYF(work, l4), data);
+        &ARRAYF(iwork, 1), &ARRAYF(iwork, l1), momcom, &ARRAYF(work, l4), user_data);
     //
     // call error handler if necessary
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) ier = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqawo";
@@ -1915,51 +1722,18 @@ void dqawo(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqawoe(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double b,
-            const double omega,
-            const int integr,
-            const double epsabs,
-            const double epsrel,
-            const int limit,
-            const int icall,
-            const int maxp1,
-            double &result,
-            double &abserr,
-            int  &neval,
-            int &ier,
-            int &last,
-            double *alist,
-            double *blist,
-            double *rlist,
-            double *elist,
-            int *iord,
-            int *nnlog,
-            int &momcom,
-            double *chebmo,
-            void * data)
+void dqawoe(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double omega, const int integr, const double epsabs,
+            const double epsrel, const int limit, const int icall, const int maxp1, double &result, double &abserr, int  &neval,
+            int &ier, int &last, double *alist, double *blist, double *rlist, double *elist, int *iord, int *nnlog, int &momcom,
+            double *chebmo, void *user_data)
 {
-    double abseps, correc, defab1, defab2, defabs, domega, dres, ertest, resabs, reseps, res3la[3], width;
-    int id, ierro, iroff1, iroff2, iroff3, jupbnd, k, ksgn, ktmin, nev, nrmax, nrmom;
-    bool extall, done, test;
-    double rlist2[52];
-    int maxerr;
-    double errmax;
-    double erlast;
-    double area;
-    double errsum;
-    double errbnd;
-    double a1, area1, b1, error1;
-    double a2, area2, b2, error2;
-    int nres;
-    int numrl2;
-    double small;
-    double erlarg;
-    double area12;
-    double erro12;
-    bool extrap;
-    bool noext;
+    int id, ierro, iroff1, iroff2, iroff3, jupbnd, k, ksgn;
+    int ktmin, maxerr, nev, noext, nres, nrmax, nrmom, numrl2;
+    bool extrap, extall;
+    double abseps, area, area1, area12, area2, a1, a2, b1, b2, correc, defab1;
+    double defab2, defabs, domega, dres, erlarg, erlast, errbnd, errmax, error1;
+    double erro12, error2, errsum, ertest, resabs, reseps, small, width;
+    double rlist2[52], res3la[3];
     double epmach, uflow, oflow;
     // first executable statement  dqawoe
     epmach = ARRAYF(d1mach, 4);
@@ -1979,20 +1753,20 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
     ARRAYF(iord,  1) = 0;
     ARRAYF(nnlog, 1) = 0;
     if((integr != 1 && integr != 2) || 
-       (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29)) || 
+       (epsabs <= 0.0 && epsrel < std::max(50.0 * epmach, 5.0e-29)) || 
        icall < 1 || maxp1 < 1) ier = 6;
-    if(ier == 6) goto label_999;
+    if(ier == 6) goto LABEL_999;
     //
     // first approximation to the integral
     // -----------------------------------
     //
     domega = std::abs(omega);
     nrmom  = 0;
-    if (icall > 1) goto label_5;
+    if (icall > 1) goto LABEL_5;
     momcom = 0;
-    label_5:
+LABEL_5:
     dqc25f(f, a, b, domega, integr, nrmom, maxp1, 0, result, abserr,
-        neval, defabs, resabs, momcom, chebmo, data);
+        neval, defabs, resabs, momcom, chebmo, user_data);
     //
     // test on accuracy.
     //
@@ -2001,9 +1775,9 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
     ARRAYF(rlist, 1) = result;
     ARRAYF(elist, 1) = abserr;
     ARRAYF(iord,  1) = 1;
-    if (abserr <= 1.0e2*epmach*defabs && abserr > errbnd) ier = 2;
+    if (abserr <= 1.0e2 * epmach * defabs && abserr > errbnd) ier = 2;
     if (limit == 1) ier = 1;
-    if (ier != 0 || abserr <= errbnd) goto label_200;
+    if (ier != 0 || abserr <= errbnd) goto LABEL_200;
     //
     // initializations
     // ---------------
@@ -2027,11 +1801,11 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
     nres   = 0;
     numrl2 = 0;
     extall = false;
-    if (0.5 * std::abs(b - a) * domega > 2.0) goto label_10;
+    if (0.5 * std::abs(b - a) * domega > 2.0) goto LABEL_10;
     numrl2 = 1;
     extall = true;
     ARRAYF(rlist2, 1) = result;
-    label_10:
+LABEL_10:
     if (0.25 * std::abs(b - a) * domega <= 2.0) extall = true;
     ksgn = -1;
     if (dres >= (1.0 - 50.0*epmach)*defabs) ksgn = 1;
@@ -2051,10 +1825,10 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
         b2     = ARRAYF(blist, maxerr);
         erlast = errmax;
         dqc25f(f, a1, b1, domega, integr, nrmom, maxp1, 0, area1, 
-            error1, nev, resabs, defab1, momcom, chebmo, data);
+            error1, nev, resabs, defab1, momcom, chebmo, user_data);
         neval += nev;
         dqc25f(f, a2, b2, domega, integr, nrmom, maxp1, 1, area2, 
-            error2, nev, resabs, defab2, momcom, chebmo, data);
+            error2, nev, resabs, defab2, momcom, chebmo, user_data);
         neval += nev;
         //
         // improve previous approximations to integral
@@ -2063,14 +1837,14 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
         area12 = area1  + area2;
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
-        area   = area + area12 - ARRAYF(rlist, maxerr);
-        if (defab1 == error1 || defab2 == error2) goto label_25;
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5*std::abs(area12) || erro12 < 0.99*errmax) goto label_20;
-        if (extrap)  iroff2 += 1;
-        if (!extrap) iroff1 += 1;
-        label_20:
-        if (last > 10 && erro12 > errmax) iroff3 += 1;
-        label_25:
+        area   = area   + area12 - ARRAYF(rlist, maxerr);
+        if (defab1 == error1 || defab2 == error2) goto LABEL_25;
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) > 1.0e-5 * std::abs(area12) || erro12 < 0.99*errmax) goto LABEL_20;
+        if (extrap)  iroff2++;
+        if (!extrap) iroff1++;
+LABEL_20:
+        if (last > 10 && erro12 > errmax) iroff3++;
+LABEL_25:
         ARRAYF(rlist, maxerr) = area1;
         ARRAYF(rlist,   last) = area2;
         ARRAYF(nnlog, maxerr) = nrmom;
@@ -2090,18 +1864,18 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
         // set error flag in the case of bad integrand behaviour
         // at a point of the integration range.
         //
-        if(std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2*epmach)*(std::abs(a2) + 1.0e3*uflow)) ier = 4;
+        if(std::max(std::abs(a1), std::abs(b2)) <= (1.0 + 1.0e2 * epmach) * (std::abs(a2) + 1.0e3 * uflow)) ier = 4;
         //
         // append the newly-created intervals to the list.
         //
-        if (error2 > error1) goto label_30;
+        if (error2 > error1) goto LABEL_30;
         ARRAYF(alist,   last) = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist,   last) = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist,   last) = error2;
-        goto label_40;
-        label_30:
+        goto LABEL_40;
+LABEL_30:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist,   last) = a1;
         ARRAYF(blist,   last) = b1;
@@ -2114,152 +1888,137 @@ void dqawoe(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with nrmax-th largest error estimate (to bisected next).
         //
-        label_40:
+LABEL_40:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
         // jump out of for-loop
-        if (errsum <= errbnd) goto label_170;
-        if (ier != 0) goto label_150;
-        if (last == 2 && extall) goto label_120;
-        if (noext) goto label_140;
-        if (!extall) goto label_50;
+        if (errsum <= errbnd) goto LABEL_170;
+        if (ier != 0) goto LABEL_150;
+        if (last == 2 && extall) goto LABEL_120;
+        if (noext) goto LABEL_140;
+        if (!extall) goto LABEL_50;
         erlarg -= erlast;
         if (std::abs(b1 - a1) > small) erlarg += erro12;
-        if (extrap) goto label_70;
+        if (extrap) goto LABEL_70;
         //
         // test whether the interval to be bisected next is the
         // smallest interval.
         //
-        label_50:
+LABEL_50:
         width = std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr));
-        if (width > small) goto label_140;
-        if (extall) goto label_60;
+        if (width > small) goto LABEL_140;
+        if (extall) goto LABEL_60;
         //
         // test whether we can start with the extrapolation procedure
         // (we do this if we integrate over the next interval with
         // use of a gauss-kronrod rule - see subroutine dqc25f).
         //
-        small  = small*0.5;
-        if (0.25*width*domega > 2.0) goto label_140;
+        small  = small * 0.5;
+        if (0.25*width*domega > 2.0) goto LABEL_140;
         extall = true;
-        goto label_130;
-        label_60:
+        goto LABEL_130;
+LABEL_60:
         extrap = true;
         nrmax  = 2;
-        label_70:
-        if (ierro == 3 || erlarg <= ertest) goto label_90;
+LABEL_70:
+        if (ierro == 3 || erlarg <= ertest) goto LABEL_90;
         //
         // the smallest interval has the largest error.
         // before bisecting decrease the sum of the errors over
         // the larger intervals (erlarg) and perform extrapolation.
         //
         jupbnd = last;
-        if (last > (limit/2 + 2)) jupbnd = limit + 3 - last;
+        if (last > (limit / 2 + 2)) jupbnd = limit + 3 - last;
         id     = nrmax;
         for (k = id; k <= jupbnd; ++k) {
             maxerr = ARRAYF(iord,   nrmax);
             errmax = ARRAYF(elist, maxerr);
-            if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto label_140;
-            nrmax += 1;
+            if (std::abs(ARRAYF(blist, maxerr) - ARRAYF(alist, maxerr)) > small) goto LABEL_140;
+            nrmax++;
         }
         // 
         // perform extrapolation.
         //
-        label_90:
-        numrl2 += 1;
+        LABEL_90:
+        numrl2++;
         ARRAYF(rlist2, numrl2) = area;
-        if (numrl2 < 3) goto label_110;
+        if (numrl2 < 3) goto LABEL_110;
         dqelg(numrl2, rlist2, reseps, abseps, res3la, nres);
-        ktmin += 1;
+        ktmin++;
         if (ktmin > 5 && abserr < 1.0e-3*errsum) ier = 5;
-        if (abseps >= abserr) goto label_100;
+        if (abseps >= abserr) goto LABEL_100;
         ktmin  = 0;
         abserr = abseps;
         result = reseps;
         correc = erlarg;
         ertest = std::max(epsabs, epsrel * std::abs(reseps));
         // jump out of for-loop
-        if (abserr <= ertest) goto label_150;
+        if (abserr <= ertest) goto LABEL_150;
         //
         // prepare bisection of the smallest interval.
         //
-        label_100:
+LABEL_100:
         if (numrl2 == 1) noext = true;
-        if (ier == 5) goto label_150;
-        label_110:
+        if (ier == 5) goto LABEL_150;
+LABEL_110:
         maxerr = ARRAYF(iord, 1);
         errmax = ARRAYF(elist, maxerr);
         nrmax  = 1;
         extrap = false;
         small *= 0.5;
         erlarg = errsum;
-        goto label_140;
-        label_120:
+        goto LABEL_140;
+LABEL_120:
         small  *= 0.5;
-        numrl2 += 1;
+        numrl2++;
         ARRAYF(rlist2, numrl2) = area;
-        label_130:
+LABEL_130:
         ertest = errbnd;
         erlarg = errsum;
-        label_140:
+LABEL_140:
         continue;
     }
     //
     // set the final result.
     // ---------------------
     //
-    label_150:
-    if (abserr == oflow || nres == 0) goto label_170;
-    if (ier + ierro == 0) goto label_165;
+LABEL_150:
+    if (abserr == oflow || nres == 0) goto LABEL_170;
+    if (ier + ierro == 0) goto LABEL_165;
     if (ierro == 3) abserr += correc;
     if (ier == 0) ier = 3;
-    if (result != 0.0 && area != 0.0) goto label_160;
-    if (abserr > errsum) goto label_170;
-    if (area == 0.0) goto label_190;
-    goto label_165;
-    label_160:
-    if (abserr/std::abs(result) > errsum/std::abs(area)) goto label_170;
+    if (result != 0.0 && area != 0.0) goto LABEL_160;
+    if (abserr > errsum) goto LABEL_170;
+    if (area == 0.0) goto LABEL_190;
+    goto LABEL_165;
+LABEL_160:
+    if (abserr/std::abs(result) > errsum/std::abs(area)) goto LABEL_170;
     //
     // test on divergence.
     //
-    label_165:
-    if (ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= defabs*1.0e-2) goto label_190;
+LABEL_165:
+    if (ksgn == -1 && std::max(std::abs(result), std::abs(area)) <= defabs*1.0e-2) goto LABEL_190;
     if (1.0e-2 > result/area || result/area > 1.0e2 || errsum >= std::abs(area)) ier = 6;
-    goto label_190;
+    goto LABEL_190;
     //
     // compute global integral sum.
     //
-    label_170:
+LABEL_170:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_190:
+LABEL_190:
     if (ier > 2) ier -= 1;
-    label_200:
+LABEL_200:
     if (integr == 2 && omega < 0.0) result = -result;
-    label_999:
+LABEL_999:
     return;
 }
 
-void dqaws(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           const double alfa,
-           const double beta,
-           const int integr,
-           const double epsabs,
-           const double epsrel,
-           double &result,
-           double &abserr,
-           int &neval,
-           int &ier,
-           const int limit,
-           const int lenw,
-           int &last,
-           int *iwork,
-           double *work,
-           void *data)
+void dqaws(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double alfa, const double beta, const int integr, const double epsabs,
+           const double epsrel, double &result, double &abserr, int &neval, int &ier, const int limit, const int lenw, int &last, int *iwork,
+           double *work, void *user_data)
 {
     int lvl, l1, l2, l3;
     // first executable statement  dqaws
@@ -2268,7 +2027,7 @@ void dqaws(QUADPACK_CPP_FUNCTION f,
     last   = 0;
     result = 0.0;
     abserr = 0.0;
-    if (limit < 2 || lenw < limit*4) goto label_10;
+    if (limit < 2 || lenw < limit*4) goto LABEL_10;
     //
     // prepare call for dqawse.
     //
@@ -2277,12 +2036,12 @@ void dqaws(QUADPACK_CPP_FUNCTION f,
     l3 = limit + l2;
     //
     dqawse(f, a, b, alfa, beta, integr, epsabs, epsrel, limit, result, abserr, neval, ier, 
-        &ARRAYF(work, 1), &ARRAYF(work, l1), &ARRAYF(work, l2), &ARRAYF(work, l3), iwork, last, data);
+        &ARRAYF(work, 1), &ARRAYF(work, l1), &ARRAYF(work, l2), &ARRAYF(work, l3), iwork, last, user_data);
     //
     // call error handler if necessary
     //
     lvl = 0;
-    label_10:
+LABEL_10:
     if (ier == 6) ier = 1;
     if (ier != 0) {
         std::string messg = "abnormal return from dqaws";
@@ -2291,38 +2050,14 @@ void dqaws(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqawse(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double b,
-            const double alfa,
-            const double beta,
-            const int integr,
-            const double epsabs,
-            const double epsrel,
-            const int limit,
-            double &result,
-            double &abserr,
-            int &neval,
-            int &ier,
-            double *alist,
-            double *blist,
-            double *rlist,
-            double *elist,
-            int *iord,
-            int &last,
-            void *data)
+void dqawse(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double alfa, const double beta, const int integr, const double epsabs,
+            const double epsrel, const int limit, double &result, double &abserr, int &neval, int &ier, double *alist, double *blist, double *rlist,
+            double *elist, int *iord, int &last, void *user_data)
 {
-    double centre, resas1, resas2, rg[25], rh[25], ri[25], rj[25];
-    int iroff1, iroff2, k, nev, nrmax;
-    double a1, b1, area1, error1;
-    double a2, b2, area2, error2;
-    double area12;
-    double erro12;
-    double area;
-    double errbnd;
-    double errmax;
-    double errsum;
-    int maxerr;
+    int iroff1, iroff2, k, maxerr, nev, nrmax;
+    double area, area1, area12, area2, a1, a2, b1, b2, centre, errbnd, errmax;
+    double error1, erro12, error2, errsum, resas1, resas2;
+    double ri[25], rj[25], rh[25], rg[25];
     double epmach, uflow;
     // first executable statement  dqawse
     epmach = ARRAYF(d1mach, 4);
@@ -2340,7 +2075,7 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
     result           = 0.0;
     abserr           = 0.0;
     if (b <= a || (epsabs == 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29)) || 
-        alfa <= -1.0 || beta <= -1.0 || integr < 1 || integr > 4 || limit < 2) goto label_999;
+        alfa <= -1.0 || beta <= -1.0 || integr < 1 || integr > 4 || limit < 2) goto LABEL_999;
     ier              = 0;
     //
     // compute the modified chebyshev moments.
@@ -2350,11 +2085,11 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
     // integrate over the intervals (a,(a+b)/2) and ((a+b)/2,b).
     //
     centre = 0.5 * (b + a);
-    dqc25s(f, a, b, a, centre, alfa, beta, ri, rj, rg, rh, area1, error1, resas1, integr, nev, data);
+    dqc25s(f, a, b, a, centre, alfa, beta, ri, rj, rg, rh, area1, error1, resas1, integr, nev, user_data);
     neval  = nev;
-    dqc25s(f, a, b, centre, b, alfa, beta, ri, rj, rg, rh, area2, error2, resas2, integr, nev, data);
+    dqc25s(f, a, b, centre, b, alfa, beta, ri, rj, rg, rh, area2, error2, resas2, integr, nev, user_data);
     last   = 2;
-    neval  = neval + nev;
+    neval += nev;
     result = area1 + area2;
     abserr = error1 + error2;
     //
@@ -2365,7 +2100,7 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
     // initialization
     // --------------
     //
-    if (error2 > error1) goto label_10;
+    if (error2 > error1) goto LABEL_10;
     ARRAYF(alist, 1) = a;
     ARRAYF(alist, 2) = centre;
     ARRAYF(blist, 1) = centre;
@@ -2374,8 +2109,8 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
     ARRAYF(rlist, 2) = area2;
     ARRAYF(elist, 1) = error1;
     ARRAYF(elist, 2) = error2;
-    goto label_20;
-    label_10:
+    goto LABEL_20;
+LABEL_10:
     ARRAYF(alist, 1) = centre;
     ARRAYF(alist, 2) = a;
     ARRAYF(blist, 1) = b;
@@ -2384,11 +2119,11 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
     ARRAYF(rlist, 2) = area1;
     ARRAYF(elist, 1) = error2;
     ARRAYF(elist, 2) = error1;
-    label_20:
+LABEL_20:
     ARRAYF(iord,  1) = 1;
     ARRAYF(iord,  2) = 2;
     if (limit == 2) ier = 1;
-    if (abserr <= errbnd || ier == 1) goto label_999;
+    if (abserr <= errbnd || ier == 1) goto LABEL_999;
     errmax           = ARRAYF(elist, 1);
     maxerr           = 1;
     nrmax            = 1;
@@ -2408,10 +2143,10 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
         b1 = 0.5 * (ARRAYF(alist, maxerr) + ARRAYF(blist, maxerr));
         a2 = b1;
         b2 = ARRAYF(blist, maxerr);
-        dqc25s(f, a, b, a1, b1, alfa, beta, ri, rj, rg, rh, area1, error1, resas1, integr, nev, data);
-        neval = neval + nev;
-        dqc25s(f, a, b, a2, b2, alfa, beta, ri, rj, rg, rh, area2, error2, resas2, integr, nev, data);
-        neval = neval + nev;
+        dqc25s(f, a, b, a1, b1, alfa, beta, ri, rj, rg, rh, area1, error1, resas1, integr, nev, user_data);
+        neval += nev;
+        dqc25s(f, a, b, a2, b2, alfa, beta, ri, rj, rg, rh, area2, error2, resas2, integr, nev, user_data);
+        neval += nev;
         //
         // improve previous approximations integral and error
         // and test for accuracy.
@@ -2420,21 +2155,21 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
         erro12 = error1 + error2;
         errsum = errsum + erro12 - errmax;
         area   = area   + area12 - ARRAYF(rlist, maxerr);
-        if (a == a1 || b == b2) goto label_30;
-        if (resas1 == error1 || resas2 == error2) goto label_30;
+        if (a == a1 || b == b2) goto LABEL_30;
+        if (resas1 == error1 || resas2 == error2) goto LABEL_30;
         //
         // test for roundoff error.
         //
-        if (std::abs(ARRAYF(rlist, maxerr) - area12) < 1.0e-5 * std::abs(area12) && erro12 >= 0.99 * errmax) iroff1 += 1;
-        if (last > 10 && erro12 > errmax) iroff2 += 1;
-        label_30:
+        if (std::abs(ARRAYF(rlist, maxerr) - area12) < 1.0e-5 * std::abs(area12) && erro12 >= 0.99 * errmax) iroff1++;
+        if (last > 10 && erro12 > errmax) iroff2++;
+LABEL_30:
         ARRAYF(rlist, maxerr) = area1;
         ARRAYF(rlist,   last) = area2;
         //
         // test on accuracy.
         //
         errbnd = std::max(epsabs, epsrel * std::abs(area));
-        if (errsum <= errbnd) goto label_35;
+        if (errsum <= errbnd) goto LABEL_35;
         //
         // set error flag in the case that the number of interval
         // bisections exceeds limit.
@@ -2452,15 +2187,15 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
         //
         // append the newly-created intervals to the list.
         //
-        label_35:
-        if (error2 > error1) goto label_40;
+LABEL_35:
+        if (error2 > error1) goto LABEL_40;
         ARRAYF(alist,   last) = a2;
         ARRAYF(blist, maxerr) = b1;
         ARRAYF(blist,   last) = b2;
         ARRAYF(elist, maxerr) = error1;
         ARRAYF(elist,   last) = error2;
-        goto label_50;
-        label_40:
+        goto LABEL_50;
+LABEL_40:
         ARRAYF(alist, maxerr) = a2;
         ARRAYF(alist,   last) = a1;
         ARRAYF(blist,   last) = b1;
@@ -2473,73 +2208,154 @@ void dqawse(QUADPACK_CPP_FUNCTION f,
         // in the list of error estimates and select the subinterval
         // with largest error estimate (to be bisected next).
         //
-        label_50:
+LABEL_50:
         dqpsrt(limit, last, maxerr, errmax, elist, iord, nrmax);
         // jump out of for-loop
-        if (ier != 0 || errsum <= errbnd) goto label_70;
+        if (ier != 0 || errsum <= errbnd) goto LABEL_70;
     }
     //
     // compute final result.
     // ---------------------
     //
-    label_70:
+LABEL_70:
     result = 0.0;
     for (k = 1; k <= last; ++k) {
         result += ARRAYF(rlist, k);
     }
     abserr = errsum;
-    label_999:
+LABEL_999:
     return;
 }
 
-void dqc25c(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double b,
-            const double c,
-            double &result,
-            double &abserr,
-            int &krul,
-            int &neval,
-            void *data)
+/**
+ * @fn void dgtsl
+*/
+void dgtsl(const int n, double *c, double *d, double *e, double *b, int &info)
 {
-    double ak22, amom0, amom1, amom2, cc, p2, p3, p4, resabs, resasc, u;
+    int k, kb, kp1, nm1, nm2;
+    double t;
+    // begin block permitting ...exits to 100
+    info = 0;
+    ARRAYF(c, 1) = ARRAYF(d, 1);
+    nm1          = n - 1;
+    if (nm1 < 1) goto LABEL_40;
+    ARRAYF(d, 1) = ARRAYF(e, 1);
+    ARRAYF(e, 1) = 0.0;
+    ARRAYF(e, n) = 0.0;
+    //
+    for (k = 1; k <= nm1; ++k) {
+        kp1 = k + 1;
+        //
+        // find the largest of the two rows
+        //
+        if (std::abs(ARRAYF(c, kp1)) < std::abs(ARRAYF(c, k))) goto LABEL_10;
+        //
+        // interchange row
+        //
+        t              = ARRAYF(c, kp1);
+        ARRAYF(c, kp1) = ARRAYF(c,   k);
+        ARRAYF(c,   k) = t;
+        t              = ARRAYF(d, kp1);
+        ARRAYF(d, kp1) = ARRAYF(d,   k);
+        ARRAYF(d,   k) = t;
+        t              = ARRAYF(e, kp1);
+        ARRAYF(e, kp1) = ARRAYF(e,   k);
+        ARRAYF(e,   k) = t;
+        t              = ARRAYF(b, kp1);
+        ARRAYF(b, kp1) = ARRAYF(b,   k);
+        ARRAYF(b,   k) = t;
+LABEL_10:
+        //
+        // zero elements
+        //
+        if (ARRAYF(c, k) != 0.0) goto LABEL_20;
+        info = k;
+        // ............exit
+        goto LABEL_100;
+LABEL_20:
+        t              = -ARRAYF(c, kp1) / ARRAYF(c, k);
+        ARRAYF(c, kp1) =  ARRAYF(d, kp1) + t*ARRAYF(d, k);
+        ARRAYF(d, kp1) =  ARRAYF(e, kp1) + t*ARRAYF(e, k);
+        ARRAYF(e, kp1) =  0.0;
+        ARRAYF(b, kp1) =  ARRAYF(b, kp1) + t*ARRAYF(b, k);
+    }
+LABEL_40:
+    if (ARRAYF(c, n) != 0.0) goto LABEL_50;
+    info = n;
+    goto LABEL_90;
+LABEL_50:
+    //
+    // back solve
+    //
+    nm2          = n - 2;
+    ARRAYF(b, n) = ARRAYF(b, n) / ARRAYF(c, n);
+    if (n == 1) goto LABEL_80;
+    ARRAYF(b, nm1) = (ARRAYF(b, nm1) - ARRAYF(d, nm1)*ARRAYF(b, n)) / ARRAYF(c, nm1);
+    if (nm2 < 1) goto LABEL_70;
+    for (kb = 1; kb <= nm2; ++kb) {
+        k            = nm2 - kb + 1;
+        ARRAYF(b, k) = (ARRAYF(b, k) - ARRAYF(d, k)*ARRAYF(b, k+1) - ARRAYF(e, k)*ARRAYF(b, k+2)) / ARRAYF(c, k);
+    }
+LABEL_70:
+LABEL_80:
+LABEL_90:
+LABEL_100:
+    //
+    return;
+}
+
+void dqc25c(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double c, 
+            double &result, double &abserr, int &krul, int &neval, void *user_data)
+{
     int i, isym, k;
-    double fval[25];
-    double cheb12[13];
-    double cheb24[25];
-    double res12;
-    double res24;
-    double hlgth;
-    double centr;
+    double ak22, amom0, amom1, amom2, cc, centr, hlgth, p2, p3, p4, resabs, resasc, res12, res24, u;
+    double fval[25], cheb12[13], cheb24[25];
     const int kp = 0;
-    double x[11];
-    for (k = 1; k <= 11; ++k) ARRAYF(x, k) = std::cos(k*M_PI/24.0);
+    //
+    // the vector x contains the values cos(k*pi/24),
+    // k = 1, ..., 11, to be used for the chebyshev series
+    // expansion of f
+    //
+    const double x[11] = {
+        0.991444861373810411144557526928563,
+        0.965925826289068286749743199728897,
+        0.923879532511286756128183189396788,
+        0.866025403784438646763723170752936,
+        0.793353340291235164579776961501299,
+        0.707106781186547524400844362104849,
+        0.608761429008720639416097542898164,
+        0.500000000000000000000000000000000,
+        0.382683432365089771728459984030399,
+        0.258819045102520762348898837624048,
+        0.130526192220051591548406227895489
+    };
+
     // first executable statement  dqc25c
     cc = (2.0*c - b - a) / (b - a);
-    if (std::abs(cc) < 1.1) goto label_10;
+    if (std::abs(cc) < 1.1) goto LABEL_10;
     //
     // apply the 15-point gauss-kronrod scheme.
     //
-    krul = krul - 1;
-    dqk15w(f, dqwgtc, c, p2, p3, p4, kp, a, b, result, abserr, resabs, resasc, data);
+    krul--;
+    dqk15w(f, dqwgtc, c, p2, p3, p4, kp, a, b, result, abserr, resabs, resasc, user_data);
     neval = 15;
-    if (resasc == abserr) krul = krul + 1;
-    goto label_50;
+    if (resasc == abserr) krul++;
+    goto LABEL_50;
     //
     // use the generalized clenshaw-curtis method.
     //
-    label_10:
+LABEL_10:
     hlgth = 0.5 * (b - a);
     centr = 0.5 * (b + a);
     neval = 25;
-    ARRAYF(fval,  1) = 0.5 * f(hlgth + centr, data);
-    ARRAYF(fval, 13) = f(centr, data);
-    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, data);
+    ARRAYF(fval,  1) = 0.5 * f(hlgth + centr, user_data);
+    ARRAYF(fval, 13) =       f(centr,         user_data);
+    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, user_data);
     for (i = 2; i <= 12; ++i) {
-        u = hlgth * ARRAYF(x, i-1);
+        u    = hlgth * ARRAYF(x, i-1);
         isym = 26 - i;
-        ARRAYF(fval, i)    = f(u + centr, data);
-        ARRAYF(fval, isym) = f(centr - u, data);
+        ARRAYF(fval,    i) = f(u + centr, user_data);
+        ARRAYF(fval, isym) = f(centr - u, user_data);
     }
     //
     // compute the chebyshev series expansion.
@@ -2550,64 +2366,60 @@ void dqc25c(QUADPACK_CPP_FUNCTION f,
     // recursion, using amom0 and amom1 as starting values.
     //
     amom0 = std::log(std::abs((1.0 - cc) / (1.0 + cc)));
-    amom1 = 2.0 + cc*amom0;
-    res12 = ARRAYF(cheb12, 1)*amom0 + ARRAYF(cheb12, 2)*amom1;
-    res24 = ARRAYF(cheb24, 1)*amom0 + ARRAYF(cheb24, 2)*amom1;
+    amom1 = 2.0 + cc * amom0;
+    res12 = ARRAYF(cheb12, 1) * amom0 + ARRAYF(cheb12, 2) * amom1;
+    res24 = ARRAYF(cheb24, 1) * amom0 + ARRAYF(cheb24, 2) * amom1;
     for (k = 3; k <= 13; ++k) {
-        amom2 = 2.0*cc*amom1 - amom0;
-        ak22 = (k - 2) * (k - 2);
-        if ((k/2)*2 == k) amom2 = amom2 - 4.0/(ak22 - 1.0);
-        res12 = res12 + ARRAYF(cheb12, k)*amom2;
-        res24 = res24 + ARRAYF(cheb24, k)*amom2;
+        amom2 = 2.0 * cc * amom1 - amom0;
+        ak22  = (k - 2) * (k - 2);
+        if ((k / 2) * 2 == k) amom2 = amom2 - 4.0 / (ak22 - 1.0);
+        res12 = res12 + ARRAYF(cheb12, k) * amom2;
+        res24 = res24 + ARRAYF(cheb24, k) * amom2;
         amom0 = amom1;
         amom1 = amom2;
     }
     for (k = 14; k <= 25; ++k) {
-        amom2 = 2.0*cc*amom1 - amom0;
-        ak22 = (k - 2) * (k - 2);
-        if ((k/2)*2 == k) amom2 = amom2 - 4.0/(ak22 - 1.0);
+        amom2 = 2.0 * cc * amom1 - amom0;
+        ak22  = (k - 2) * (k - 2);
+        if ((k / 2) * 2 == k) amom2 = amom2 - 4.0 / (ak22 - 1.0);
         res24 = res24 +  ARRAYF(cheb24, k)*amom2;
         amom0 = amom1;
         amom1 = amom2;
     }
     result = res24;
     abserr = std::abs(res24 - res12);
-    label_50:
+LABEL_50:
     return;
 }
 
-void dqc25f(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double b,
-            const double omega,
-            const int integr,
-            const int nrmom,
-            const int maxp1,
-            const int ksave,
-            double &result,
-            double &abserr,
-            int &neval,
-            double &resabs,
-            double &resasc,
-            int &momcom,
-            double *chebmo, // chebmo
-            void *data)
+void dqc25f(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double omega, const int integr, 
+            const int nrmom, const int maxp1, const int ksave, double &result, double &abserr, int &neval, 
+            double &resabs, double &resasc, int &momcom, double *chebmo, void *user_data)
 {
-    double ac, an, an2, as, asap, ass, conc, cons, cospar, d[25], d1[25], d2[25],
-           estc, ests, parint, par2, par22, p2, p3, p4, sinpar, v[28];
     int i, iers, isym, j, k, m, noequ, noeq1;
-    double centr;
-    double hlgth;
-    double fval[25];
-    double cheb12[13];
-    double cheb24[25];
-    double resc12;
-    double resc24;
-    double ress12;
-    double ress24;
+    double ac, an, an2, as, asap, ass, centr, conc, cons, cospar, estc, ests;
+    double hlgth, parint, par2, par22, resc12, resc24, ress12, ress24, sinpar;
+    double p2, p3, p4;
+    double cheb12[13], cheb24[25], d[25], d1[25], d2[25], fval[25], v[28];
     double oflow;
-    double x[11];
-    for (k = 1; k <= 11; ++k) ARRAYF(x, k) = std::cos(k*M_PI/24.0);
+    const int chebmo_nrows = 25;
+    //
+    // the vector x contains the values cos(k*pi/24)
+    // k = 1, ...,11, to be used for the chebyshev expansion of f
+    //
+    const double x[11] = {
+        0.991444861373810411144557526928563,
+        0.965925826289068286749743199728897,
+        0.923879532511286756128183189396788,
+        0.866025403784438646763723170752936,
+        0.793353340291235164579776961501299,
+        0.707106781186547524400844362104849,
+        0.608761429008720639416097542898164,
+        0.500000000000000000000000000000000,
+        0.382683432365089771728459984030399,
+        0.258819045102520762348898837624048,
+        0.130526192220051591548406227895489
+    };
     // first executable statement  dqc25f
     oflow  = ARRAYF(d1mach, 2);
     //
@@ -2619,24 +2431,24 @@ void dqc25f(QUADPACK_CPP_FUNCTION f,
     // formula if the value of the parameter in the integrand
     // is small.
     //
-    if(std::abs(parint) > 2.0) goto label_10;
-    dqk15w(f, dqwgtf, omega, p2, p3, p4, integr, a, b, result, abserr, resabs, resasc, data);
+    if(std::abs(parint) > 2.0) goto LABEL_10;
+    dqk15w(f, dqwgtf, omega, p2, p3, p4, integr, a, b, result, abserr, resabs, resasc, user_data);
     neval = 15;
-    goto label_170;
+    goto LABEL_170;
     //
     // compute the integral using the generalized clenshaw-
     // curtis method.
     //
-    label_10:
-    conc   = hlgth * std::cos(centr*omega);
-    cons   = hlgth * std::sin(centr*omega);
+LABEL_10:
+    conc   = hlgth * std::cos(centr * omega);
+    cons   = hlgth * std::sin(centr * omega);
     resasc = oflow;
     neval  = 25;
     //
     // check whether the chebyshev moments for this interval
     // have already been computed.
     // 
-    if (nrmom < momcom || ksave == 1) goto label_120;
+    if (nrmom < momcom || ksave == 1) goto LABEL_120;
     //
     // compute a new set of chebyshev moments.
     // 
@@ -2649,11 +2461,11 @@ void dqc25f(QUADPACK_CPP_FUNCTION f,
     // compute the chebyshev moments with respect to cosine.
     //
     ARRAYF(v, 1) = 2.0 * sinpar / parint; 
-    ARRAYF(v, 2) = (8.0*cospar + (par2 + par2 - 8.0) * sinpar/parint) / par2;
-    ARRAYF(v, 3) = (32.0*(par2 - 12.0)*cospar + (2.0*((par2 - 80.0)*par2 + 192.0)*sinpar) / parint) / (par2*par2);
-    ac = 8.0 * cospar;
+    ARRAYF(v, 2) = (8.0 * cospar + (par2 + par2 - 8.0) * sinpar / parint) / par2;
+    ARRAYF(v, 3) = (32.0 * (par2 - 12.0) * cospar + (2.0 * ((par2 - 80.0) * par2 + 192.0) * sinpar) / parint) / (par2 * par2);
+    ac =  8.0 * cospar;
     as = 24.0 * parint * sinpar;
-    if (std::abs(parint) > 24.0) goto label_30;
+    if (std::abs(parint) > 24.0) goto LABEL_30;
     //
     // compute the chebyshev moments as the solutions of a
     // boundary value problem with 1 initial value (v(3)) and 1
@@ -2676,19 +2488,19 @@ void dqc25f(QUADPACK_CPP_FUNCTION f,
     ARRAYF(v,       4) = ARRAYF(v, 4) - 56.0 * par2 * ARRAYF(v, 3);
     ass                = parint * sinpar;
     asap               = (((((210.0*par2 - 1.0)*cospar - (105.0*par2 - 63.0)*ass) / an2 - (1.0 - 15.0*par2)*cospar
-                       + 15.0*ass) / an2 - cospar + 3.0*ass) / an2 - cospar) / an2;
+                        + 15.0*ass) / an2 - cospar + 3.0*ass) / an2 - cospar) / an2;
     ARRAYF(v, noequ+3) = ARRAYF(v, noequ+3) - 2.0 * asap * par2 * (an - 1.0) * (an - 2.0);
     //
     // solve the tridiagonal system by means of gaussian
     // elimination with partial pivoting.
     //
     dgtsl(noequ, d1, d, d2, &ARRAYF(v, 4), iers);
-    goto label_50;
+    goto LABEL_50;
     //
     // compute the chebyshev moments by means of forward
     // recursion.
     //
-    label_30:
+LABEL_30:
     an = 4.0;
     for (i = 4; i <= 13; ++i) {
         an2          = an * an;
@@ -2696,18 +2508,18 @@ void dqc25f(QUADPACK_CPP_FUNCTION f,
                      + as - par2 * (an + 1.0) * (an + 2.0) * ARRAYF(v, i-2)) / (par2 * (an - 1.0) * (an - 2.0));
         an          += 2.0;
     }
-    label_50:
+LABEL_50:
     for (j = 1; j <= 13; ++j) {
-        MATF(chebmo, 25, m, 2*j-1) = ARRAYF(v, j);
+        MATF(chebmo, chebmo_nrows, m, 2*j-1) = ARRAYF(v, j);
     }
     //
     // compute the chebyshev moments with respect to sine.
     //
     ARRAYF(v, 1) = 2.0 * (sinpar - parint * cospar) / par2;
-    ARRAYF(v, 2) = (18.0 - 48.0/par2) * sinpar / par2 + (-2.0 + 48.0/par2) * cospar / parint;
+    ARRAYF(v, 2) = (18.0 - 48.0 / par2) * sinpar / par2 + (-2.0 + 48.0 / par2) * cospar / parint;
     ac           = -24.0 * parint * cospar;
     as           = -8.0 * sinpar;
-    if (std::abs(parint) > 24.0) goto label_80;
+    if (std::abs(parint) > 24.0) goto LABEL_80;
     //
     // compute the chebyshev moments as the solutions of a boundary
     // value problem with 1 initial value (v(2)) and 1 end value
@@ -2734,46 +2546,46 @@ void dqc25f(QUADPACK_CPP_FUNCTION f,
     // elimination with partial pivoting.
     //
     dgtsl(noequ, d1, d, d2, &ARRAYF(v, 3), iers);
-    goto label_100;
+    goto LABEL_100;
     //
     // compute the chebyshev moments by means of forward recursion.
     //
-    label_80:
+LABEL_80:
     an = 3.0;
     for (i = 3; i <= 12; ++i) {
         an2          = an * an;
         ARRAYF(v, i) = ((an2 - 4.0) * (2.0 * (par22 - an2 - an2) * ARRAYF(v, i-1) + as) + ac - par2 * (an + 1.0) * (an + 2.0) * ARRAYF(v, i-2)) / (par2 * (an - 1.0) * (an - 2.0));
         an          += 2.0;
     }
-    label_100:
+LABEL_100:
     for (j = 1; j <= 12; ++j) {
-        MATF(chebmo, 25, m, 2*j) = ARRAYF(v, j);
+        MATF(chebmo, chebmo_nrows, m, 2*j) = ARRAYF(v, j);
     }
-    label_120:
+LABEL_120:
     if (nrmom < momcom) m = nrmom + 1;
     if (momcom < maxp1 - 1 && nrmom >= momcom) momcom += 1;
     //
     // compute the coefficients of the chebyshev expansions
     // of degrees 12 and 24 of the function f.
     //
-    ARRAYF(fval,  1) = 0.5 * f(centr + hlgth, data);
-    ARRAYF(fval, 13) = f(centr, data);
-    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, data);
+    ARRAYF(fval,  1) = 0.5 * f(centr + hlgth, user_data);
+    ARRAYF(fval, 13) =       f(centr,         user_data);
+    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, user_data);
     for (i = 2; i <= 12; ++i) {
         isym = 26 - i;
-        ARRAYF(fval,    i) = f(hlgth * ARRAYF(x, i-1) + centr, data);
-        ARRAYF(fval, isym) = f(centr - hlgth * ARRAYF(x, i-1), data);
+        ARRAYF(fval,    i) = f(centr + hlgth * ARRAYF(x, i-1), user_data);
+        ARRAYF(fval, isym) = f(centr - hlgth * ARRAYF(x, i-1), user_data);
     }
     dqcheb(x, fval, cheb12, cheb24);
     //
     // compute the integral and error estimates.
     //
-    resc12 = ARRAYF(cheb12, 13) * MATF(chebmo, 25, m, 13);
+    resc12 = ARRAYF(cheb12, 13) * MATF(chebmo, chebmo_nrows, m, 13);
     ress12 = 0.0;
-    k = 11;
+    k      = 11;
     for (j = 1; j <= 6; ++j) {
-        resc12 = resc12 + ARRAYF(cheb12,   k) * MATF(chebmo, 25, m,   k);
-        ress12 = ress12 + ARRAYF(cheb12, k+1) * MATF(chebmo, 25, m, k+1);
+        resc12 = resc12 + ARRAYF(cheb12,   k) * MATF(chebmo, chebmo_nrows, m,   k);
+        ress12 = ress12 + ARRAYF(cheb12, k+1) * MATF(chebmo, chebmo_nrows, m, k+1);
         k     -= 2;
     }
     resc24 = ARRAYF(cheb24, 25) * MATF(chebmo, maxp1, m, 25);
@@ -2781,66 +2593,62 @@ void dqc25f(QUADPACK_CPP_FUNCTION f,
     resabs = std::abs(ARRAYF(cheb24, 25));
     k      = 23;
     for (j = 1; j <= 12; ++j) {
-        resc24 = resc24 + ARRAYF(cheb24,   k) * MATF(chebmo, 25, m,   k);
-        ress24 = ress24 + ARRAYF(cheb24, k+1) * MATF(chebmo, 25, m, k+1);
+        resc24 = resc24 + ARRAYF(cheb24,   k) * MATF(chebmo, chebmo_nrows, m,   k);
+        ress24 = ress24 + ARRAYF(cheb24, k+1) * MATF(chebmo, chebmo_nrows, m, k+1);
         resabs = resabs + std::abs(ARRAYF(cheb24, k)) + std::abs(ARRAYF(cheb24, k+1));
         k -= 2;
     }
     estc   = std::abs(resc24 - resc12);
     ests   = std::abs(ress24 - ress12);
     resabs = resabs * std::abs(hlgth);
-    if (integr == 2) goto label_160;
+    if (integr == 2) goto LABEL_160;
     result = conc*resc24 - cons*ress24;
     abserr = std::abs(conc*estc) + std::abs(cons*ests);
-    goto label_170;
-    label_160:
+    goto LABEL_170;
+LABEL_160:
     result = conc*ress24 + cons*resc24;
     abserr = std::abs(conc*ests) + std::abs(cons*estc);
-    label_170:
+LABEL_170:
     return;
 }
 
-void dqc25s(QUADPACK_CPP_FUNCTION f,
-            const double a,
-            const double b,
-            const double bl,
-            const double br,
-            const double alfa,
-            const double beta,
-            const double *ri,
-            const double *rj,
-            const double *rg,
-            const double *rh,
-            double &result,
-            double &abserr,
-            double &resasc,
-            const int integr,
-            int &nev,
-            void *data)
+void dqc25s(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double bl, const double br,
+            const double alfa, const double beta, const double *ri, const double *rj, const double *rg,
+            const double *rh, double &result, double &abserr, double &resasc, const int integr, int &nev,
+            void *user_data)
 {
-    double cheb12[13];
-    double cheb24[25];
-    double fval[25];
-    double res12;
-    double res24;
-    double hlgth;
-    double centr;
-    int k;
-    double dc, factor, fix, resabs, u;
     int i, isym;
-    double x[11];
-    for (k = 1; k <= 11; ++k) ARRAYF(x, k) = std::cos(k*M_PI/24.0);
+    double centr, dc, factor, fix, hlgth, resabs, res12, res24, u;
+    double cheb12[13], cheb24[25], fval[25];
+    //
+    // the vector x contains the values cos(k*pi/24)
+    // k = 1, ..., 11, to be used for the computation of the
+    // chebyshev series expansion of f.
+    //
+    const double x[11]= {
+        0.991444861373810411144557526928563,
+        0.965925826289068286749743199728897,
+        0.923879532511286756128183189396788,
+        0.866025403784438646763723170752936,
+        0.793353340291235164579776961501299,
+        0.707106781186547524400844362104849,
+        0.608761429008720639416097542898164,
+        0.500000000000000000000000000000000,
+        0.382683432365089771728459984030399,
+        0.258819045102520762348898837624048,
+        0.130526192220051591548406227895489
+    };
     // first executable statement  dqc25s
     nev = 25;
-    if (bl == a && (alfa != 0.0 || integr == 2 || integr == 4)) goto label_10;
-    if (br == b && (beta != 0.0 || integr == 3 || integr == 4)) goto label_140;
+    if (bl == a && (alfa != 0.0 || integr == 2 || integr == 4)) goto LABEL_10;
+    if (br == b && (beta != 0.0 || integr == 3 || integr == 4)) goto LABEL_140;
     //
     // if a.gt.bl and b.lt.br, apply the 15-point gauss-kronrod
     // scheme.
     //
-    dqk15w(f, dqwgts, a, b, alfa, beta, integr, bl, br, result, abserr, resabs, resasc, data);
+    dqk15w(f, dqwgts, a, b, alfa, beta, integr, bl, br, result, abserr, resabs, resasc, user_data);
     nev = 15;
-    goto label_270;
+    goto LABEL_270;
     //
     // this part of the program is executed only if a = bl.
     // ----------------------------------------------------
@@ -2850,25 +2658,25 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     // f1 = (0.5*(b+b-br-a)-0.5*(br-a)*x)**beta
     //        *f(0.5*(br-a)*x+0.5*(br+a))
     //
-    label_10:
+LABEL_10:
     hlgth            = 0.5 * (br - bl);
     centr            = 0.5 * (br + bl);
     fix              = b - centr;
-    ARRAYF(fval,  1) = 0.5 * f(hlgth + centr, data) * std::pow(fix - hlgth, beta);
-    ARRAYF(fval, 13) =       f(centr,         data) * std::pow(fix,         beta);
-    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, data) * std::pow(fix + hlgth, beta);
+    ARRAYF(fval,  1) = 0.5 * f(hlgth + centr, user_data) * std::pow(fix - hlgth, beta);
+    ARRAYF(fval, 13) =       f(centr,         user_data) * std::pow(fix,         beta);
+    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, user_data) * std::pow(fix + hlgth, beta);
     for (i = 2; i <= 12; ++i) {
         u                  = hlgth * ARRAYF(x, i-1);
         isym               = 26 - i;
-        ARRAYF(fval,    i) = f(u + centr, data) * std::pow(fix - u, beta);
-        ARRAYF(fval, isym) = f(centr - u, data) * std::pow(fix + u, beta);
+        ARRAYF(fval,    i) = f(u + centr, user_data) * std::pow(fix - u, beta);
+        ARRAYF(fval, isym) = f(centr - u, user_data) * std::pow(fix + u, beta);
     }
     factor = std::pow(hlgth, alfa + 1.0);
     result = 0.0;
     abserr = 0.0;
     res12  = 0.0;
     res24  = 0.0;
-    if (integr > 2) goto label_70;
+    if (integr > 2) goto LABEL_70;
     dqcheb(x, fval, cheb12, cheb24);
     //
     // integr = 1  (or 2)
@@ -2880,7 +2688,7 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(ri, i);
     }
-    if (integr == 1) goto label_130;
+    if (integr == 1) goto LABEL_130;
     //
     // integr = 2
     //
@@ -2896,13 +2704,13 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(rg, i);
     }
-    goto label_130;
+    goto LABEL_130;
     //
     // compute the chebyshev series expansion of the
     // following function
     // f4 = f1*log(0.5*(b+b-br-a)-0.5*(br-a)*x)
     //
-    label_70:
+LABEL_70:
     ARRAYF(fval,  1) = ARRAYF(fval,  1) * std::log(fix - hlgth);
     ARRAYF(fval, 13) = ARRAYF(fval, 13) * std::log(fix);
     ARRAYF(fval, 25) = ARRAYF(fval, 25) * std::log(fix + hlgth);
@@ -2923,7 +2731,7 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(ri, i);
     }
-    if (integr == 3) goto label_130;
+    if (integr == 3) goto LABEL_130;
     //
     // integr = 4
     //
@@ -2939,10 +2747,10 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(rg, i);
     }
-    label_130:
+LABEL_130:
     result = (result + res24) * factor;
     abserr = (abserr + std::abs(res24 - res12)) * factor;
-    goto label_270;
+    goto LABEL_270;
     //
     // this part of the program is executed only if b = br.
     // ----------------------------------------------------
@@ -2952,25 +2760,25 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     // f2 = (0.5*(b+bl-a-a)+0.5*(b-bl)*x)**alfa
     //      *f(0.5*(b-bl)*x+0.5*(b+bl))
     //
-    label_140:
+LABEL_140:
     hlgth            = 0.5 * (br - bl);
     centr            = 0.5 * (br + bl);
     fix              = centr - a;
-    ARRAYF(fval,  1) = 0.5 * f(hlgth + centr, data) * std::pow(fix + hlgth, alfa);
-    ARRAYF(fval, 13) =       f(centr,         data) * std::pow(fix,         alfa);
-    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, data) * std::pow(fix - hlgth, alfa);
+    ARRAYF(fval,  1) = 0.5 * f(hlgth + centr, user_data) * std::pow(fix + hlgth, alfa);
+    ARRAYF(fval, 13) =       f(centr,         user_data) * std::pow(fix,         alfa);
+    ARRAYF(fval, 25) = 0.5 * f(centr - hlgth, user_data) * std::pow(fix - hlgth, alfa);
     for (i = 2; i <= 12; ++i) {
         u                  = hlgth * ARRAYF(x, i-1);
         isym               = 26 - i;
-        ARRAYF(fval,    i) = f(u + centr, data) * std::pow(fix + u, alfa);
-        ARRAYF(fval, isym) = f(centr - u, data) * std::pow(fix - u, alfa);
+        ARRAYF(fval,    i) = f(u + centr, user_data) * std::pow(fix + u, alfa);
+        ARRAYF(fval, isym) = f(centr - u, user_data) * std::pow(fix - u, alfa);
     }
     factor = std::pow(hlgth, beta + 1.0);
     result = 0.0;
     abserr = 0.0;
     res12  = 0.0;
     res24  = 0.0;
-    if (integr == 2 || integr == 4) goto label_200;
+    if (integr == 2 || integr == 4) goto LABEL_200;
     //
     // integr = 1  (or 3)
     //
@@ -2982,7 +2790,7 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(rj, i);
     }
-    if (integr == 1) goto label_260;
+    if (integr == 1) goto LABEL_260;
     //
     // integr = 3
     //
@@ -2998,13 +2806,13 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(rh, i);
     }
-    goto label_260;
+    goto LABEL_260;
     //
     // compute the chebyshev series expansion of the
     // following function
     // f3 = f2*log(0.5*(b-bl)*x+0.5*(b+bl-a-a))
     //
-    label_200:
+LABEL_200:
     ARRAYF(fval,  1) = ARRAYF(fval,  1) * std::log(hlgth + fix);
     ARRAYF(fval, 13) = ARRAYF(fval, 13) * std::log(fix);
     ARRAYF(fval, 25) = ARRAYF(fval, 25) * std::log(fix - hlgth);
@@ -3025,7 +2833,7 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(rj, i);
     }
-    if (integr == 2) goto label_260;
+    if (integr == 2) goto LABEL_260;
     dc     = std::log(br - bl);
     result = res24 * dc;
     abserr = std::abs((res24 - res12) * dc);
@@ -3041,21 +2849,18 @@ void dqc25s(QUADPACK_CPP_FUNCTION f,
     for (i = 14; i <= 25; ++i) {
         res24 = res24 + ARRAYF(cheb24, i) * ARRAYF(rh, i);
     }
-    label_260:
+LABEL_260:
     result = (result + res24) * factor;
     abserr = (abserr + std::abs(res24 - res12)) * factor;
-    label_270:
+LABEL_270:
     return;
 }
 
 
-void dqcheb(const double *x,
-            double *fval,
-            double *cheb12,
-            double *cheb24)
+void dqcheb(const double *x, double *fval, double *cheb12, double *cheb24)
 {
-    double alam, alam1, alam2, part1, part2, part3, v[12];
     int i, j;
+    double alam, alam1, alam2, part1, part2, part3, v[12];
     // first executable statement  dqcheb
     for (i = 1; i <= 12; ++i) {
         j               = 26 - i;
@@ -3139,7 +2944,7 @@ void dqcheb(const double *x,
     ARRAYF(cheb24, 25) = ARRAYF(cheb12, 1) - alam;
     ARRAYF(cheb12, 13) = ARRAYF(v, 1) - ARRAYF(v, 3);
     ARRAYF(cheb24, 13) = ARRAYF(cheb12, 13);
-    alam = 1.0/6.0;
+    alam               = 1.0 / 6.0;
     for (i = 2; i <= 12; ++i) {
         ARRAYF(cheb12, i) = ARRAYF(cheb12, i) * alam;
     }
@@ -3154,28 +2959,20 @@ void dqcheb(const double *x,
     return;
 }
 
-void dqelg(int &n,
-           double *epstab,
-           double &result,
-           double &abserr,
-           double *res3la,
-           int &nres)
+void dqelg(int &n, double *epstab, double &result, double &abserr, double *res3la, int &nres)
 {
-    double delta1, delta2, delta3, epsinf,
+    double delta1, delta2, delta3, epsinf, error,
            err1, err2, err3, e0, e1, e1abs,
            e2, e3, res, ss, tol1, tol2, tol3;
     double epmach, oflow;
-    int i, ib, ib2, ie, indx, k1, k2, k3, num, limexp;
-    int newelm;
-    double error;
-
+    int i, ib, ib2, ie, indx, k1, k2, k3, num, limexp, newelm;
     // first executable statement  dqelg
     epmach = ARRAYF(d1mach, 4);
     oflow  = ARRAYF(d1mach, 2);
     nres  += 1;
     abserr = oflow;
     result = ARRAYF(epstab, n);
-    if(n < 3) goto label_100;
+    if(n < 3) goto LABEL_100;
     limexp = 50;
     ARRAYF(epstab, n+2) = ARRAYF(epstab, n);
     newelm = (n - 1) / 2;
@@ -3196,7 +2993,7 @@ void dqelg(int &n,
         delta3 = e1 - e0;
         err3   = std::abs(delta3);
         tol3   = std::max(e1abs, std::abs(e0)) * epmach;
-        if (err2 > tol2 || err3 > tol3) goto label_10;
+        if (err2 > tol2 || err3 > tol3) goto LABEL_10;
         //
         // if e0, e1 and e2 are equal to within machine
         // accuracy, convergence is assumed.
@@ -3206,103 +3003,89 @@ void dqelg(int &n,
         result = res;
         abserr = err2 + err3;
         // jump out of for-loop
-        goto label_100;
-        label_10:
+        goto LABEL_100;
+LABEL_10:
         e3           = ARRAYF(epstab, k1);
         ARRAYF(epstab, k1) = e1;
         delta1       = e1 - e3;
         err1         = std::abs(delta1);
-        tol1         = std::max(e1abs, std::abs(e3))*epmach;
+        tol1         = std::max(e1abs, std::abs(e3)) * epmach;
         //
         // if two elements are very close to each other, omit
         // a part of the table by adjusting the value of n
         //
-        if (err1 <= tol1 || err2 <= tol2 || err3 <= tol3) goto label_20;
-        ss = 1.0/delta1 +1.0/delta2 - 1.0/delta3;
+        if (err1 <= tol1 || err2 <= tol2 || err3 <= tol3) goto LABEL_20;
+        ss = 1.0 / delta1 + 1.0 / delta2 - 1.0 / delta3;
         epsinf = std::abs(ss*e1);
         //
         // test to detect irregular behaviour in the table, and
         // eventually omit a part of the table adjusting the value
         // of n.
         // 
-        if (epsinf > 1.0e-4) goto label_30;
-        label_20:
+        if (epsinf > 1.0e-4) goto LABEL_30;
+LABEL_20:
         n = i + i - 1;
         // jump out of for-loop
-        goto label_50;
+        goto LABEL_50;
         //
         // compute a new element and eventually adjust
         // the value of result.
         //
-        label_30:
-        res          = e1 + 1.0/ss;
+LABEL_30:
+        res          = e1 + 1.0 / ss;
         ARRAYF(epstab, k1) = res;
         k1           = k1 - 2;
         error        = err2 + std::abs(res - e2) + err3;
-        if (error > abserr) continue; // goto label_40;
+        if (error > abserr) goto LABEL_40;
         abserr = error;
         result = res;
-        // label_40:
-        // continue;
+LABEL_40:
+        continue;
     }
     //
     // shift the table.
     //
-    label_50:
-    if (n == limexp) n = 2*(limexp/2) - 1;
+LABEL_50:
+    if (n == limexp) n = 2 * (limexp / 2) - 1;
     ib = 1;
-    if ((num/2)*2 == num) ib = 2;
+    if ((num / 2) * 2 == num) ib = 2;
     ie = newelm + 1;
     for (i = 1; i <= ie; ++i) {
         ib2 = ib + 2;
         ARRAYF(epstab, ib) = ARRAYF(epstab, ib2);
         ib = ib2;
     }
-    if(num == n) goto label_80;
+    if(num == n) goto LABEL_80;
     indx = num - n + 1;
     for (i = 1; i <= n; ++i) {
         ARRAYF(epstab, i) = ARRAYF(epstab, indx);
         indx += 1;
     }
-    label_80:
-    if(nres >= 4) goto label_90;
+LABEL_80:
+    if(nres >= 4) goto LABEL_90;
     ARRAYF(res3la, nres) = result;
     abserr = oflow;
-    goto label_100;
+    goto LABEL_100;
     //
     // compute error estimate
     // 
-    label_90:
+LABEL_90:
     abserr = std::abs(result - ARRAYF(res3la, 3)) + std::abs(result - ARRAYF(res3la, 2)) + std::abs(result - ARRAYF(res3la, 1));
     ARRAYF(res3la, 1) = ARRAYF(res3la, 2);
     ARRAYF(res3la, 2) = ARRAYF(res3la, 3);
     ARRAYF(res3la, 3) = result;
-    label_100:
-    abserr = std::max(abserr, 5.0*epmach*std::abs(result));
+LABEL_100:
+    abserr = std::max(abserr, 5.0 * epmach * std::abs(result));
     return;
 }
 
-
-void dqk15(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           double &result,
-           double &abserr,
-           double &resabs,
-           double &resasc,
-           void *data)
+void dqk15(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data)
 {
-    double dhlgth, fc, fsum, fv1[7], fv2[7];
-    double uflow, epmach;
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, centr, dhlgth, fc, fsum, fval1, fval2, hlgth, resg, resk,reskh;
+    double fv1[7], fv2[7];
+    double uflow, epmach;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
@@ -3323,32 +3106,31 @@ void dqk15(QUADPACK_CPP_FUNCTION f,
     // bell labs, nov. 1981.
     // 
     const double wg[4] = {
-        1.29484966168869693270611432679082018329e-1,
-        2.79705391489276667901467771423779582487e-1,
-        3.81830050505118944950369775488975133878e-1,
-        4.17959183673469387755102040816326530612e-1
+        0.129484966168869693270611432679082,
+        0.279705391489276667901467771423780,
+        0.381830050505118944950369775488975,
+        0.417959183673469387755102040816327
     };
     const double xgk[8] = {
-        9.91455371120812639206854697526328516642e-1,
-        9.49107912342758524526189684047851262401e-1,
-        8.64864423359769072789712788640926201211e-1,
-        7.41531185599394439863864773280788407074e-1,
-        5.86087235467691130294144838258729598437e-1,
-        4.05845151377397166906606412076961463347e-1,
-        2.07784955007898467600689403773244913480e-1,
-        0.00000000000000000000000000000000000000
+        0.991455371120812639206854697526329,
+        0.949107912342758524526189684047851,
+        0.864864423359769072789712788640926,
+        0.741531185599394439863864773280788,
+        0.586087235467691130294144838258730,
+        0.405845151377397166906606412076961,
+        0.207784955007898467600689403773245,
+        0.000000000000000000000000000000000
     };
     const double wgk[8] = {
-        2.29353220105292249637320080589695919936e-2,
-        6.30920926299785532907006631892042866651e-2,
-        1.04790010322250183839876322541518017444e-1,
-        1.40653259715525918745189590510237920400e-1,
-        1.69004726639267902826583426598550284106e-1,
-        1.90350578064785409913256402421013682826e-1,
-        2.04432940075298892414161999234649084717e-1,
-        2.09482141084727828012999174891714263698e-1
+        0.022935322010529224963732008058970,
+        0.063092092629978553290700663189204,
+        0.104790010322250183839876322541518,
+        0.140653259715525918745189590510238,
+        0.169004726639267902826583426598550,
+        0.190350578064785409913256402421014,
+        0.204432940075298892414161999234649,
+        0.209482141084727828012999174891714
     };
-    //
     // first executable statement  dqk15
     epmach = ARRAYF(d1mach, 4);
     uflow  = ARRAYF(d1mach, 1);
@@ -3360,39 +3142,39 @@ void dqk15(QUADPACK_CPP_FUNCTION f,
     // compute the 15-point kronrod approximation to
     // the integral, and estimate the absolute error.
     //
-    fc     = f(centr, data);
-    resg   = fc * ARRAYF(wg, 4);
+    fc     = f(centr, user_data);
+    resg   = fc * ARRAYF(wg,  4);
     resk   = fc * ARRAYF(wgk, 8);
     resabs = std::abs(resk);
     for (j = 1; j <= 3; ++j) {
-        jtw = j * 2;
-        absc = hlgth * ARRAYF(xgk, jtw);
-        fval1 = f(centr - absc, data);
-        fval2 = f(centr + absc, data);
+        jtw    = j * 2;
+        absc   = hlgth * ARRAYF(xgk, jtw);
+        fval1  = f(centr - absc, user_data);
+        fval2  = f(centr + absc, user_data);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
-        fsum = fval1 + fval2;
-        resg = resg + ARRAYF(wg, j) * fsum;
-        resk = resk + ARRAYF(wgk, jtw) * fsum;
+        fsum   = fval1 + fval2;
+        resg   = resg + ARRAYF(wg,    j) * fsum;
+        resk   = resk + ARRAYF(wgk, jtw) * fsum;
         resabs = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 4; ++j) {
-        jtwm1      = 2*j - 1;
-        absc       = hlgth * ARRAYF(xgk, jtwm1);
-        fval1      = f(centr - absc, data);
-        fval2      = f(centr + absc, data);
+        jtwm1  = 2 * j - 1;
+        absc   = hlgth * ARRAYF(xgk, jtwm1);
+        fval1  = f(centr - absc, user_data);
+        fval2  = f(centr + absc, user_data);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
-        fsum       = fval1 + fval2;
-        resk       = resk + ARRAYF(wgk, jtwm1) * fsum;
-        resabs     = resabs + ARRAYF(wgk, jtwm1) * (std::abs(fval1) + std::abs(fval2));
+        fsum   = fval1 + fval2;
+        resk   = resk   + ARRAYF(wgk, jtwm1) * fsum;
+        resabs = resabs + ARRAYF(wgk, jtwm1) * (std::abs(fval1) + std::abs(fval2));
     }
     reskh  = resk * 0.5;
     resasc = ARRAYF(wgk, 8) * std::abs(fc - reskh);
     for (j = 1; j <= 7; ++j) {
-        resasc += ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
+        resasc = resasc + ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk * hlgth;
+    result = resk   * hlgth;
     resabs = resabs * dhlgth;
     resasc = resasc * dhlgth;
     abserr = std::abs((resk - resg) * hlgth);
@@ -3401,31 +3183,14 @@ void dqk15(QUADPACK_CPP_FUNCTION f,
     return;
 }
 
-void dqk15i(QUADPACK_CPP_FUNCTION f,
-            const double boun,
-            const int inf,
-            const double a,
-            const double b,
-            double &result,
-            double &abserr,
-            double &resabs,
-            double &resasc,
-            void *data)
+void dqk15i(QUADPACK_CPP_FUNCTION f, const double boun, const int inf, const double a, const double b,
+            double &result, double &abserr, double &resabs, double &resasc, void *user_data)
 {
-    double absc, dinf, fc, fsum, fv1[7], fv2[7];
-    double uflow, epmach;
     int j;
-    double centr;
-    double hlgth;
-    double absc1;
-    double absc2;
-    double tabsc1;
-    double tabsc2;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, absc1, absc2, centr, dinf, fc, fsum, fval1, fval2, hlgth, resg;
+    double resk, reskh, tabsc1, tabsc2;
+    double fv1[7], fv2[7];
+    double uflow, epmach;
     //
     // the abscissae and weights are supplied for the interval
     // (-1,1).  because of symmetry only the positive abscissae and
@@ -3444,51 +3209,51 @@ void dqk15i(QUADPACK_CPP_FUNCTION f,
     //          wg(1), wg(3), ... are set to zero.
     //
     const double wg[8] = {
-        0.00000000000000000000000000000000000000,
-        1.29484966168869693270611432679082018329e-1,
-        0.00000000000000000000000000000000000000,
-        2.79705391489276667901467771423779582487e-1,
-        0.00000000000000000000000000000000000000,
-        3.81830050505118944950369775488975133878e-1,
-        0.00000000000000000000000000000000000000,
-        4.17959183673469387755102040816326530612e-1
+        0.000000000000000000000000000000000,
+        0.129484966168869693270611432679082,
+        0.000000000000000000000000000000000,
+        0.279705391489276667901467771423780,
+        0.000000000000000000000000000000000,
+        0.381830050505118944950369775488975,
+        0.000000000000000000000000000000000,
+        0.417959183673469387755102040816327
     };
     const double xgk[8] = {
-        9.91455371120812639206854697526328516642e-1,
-        9.49107912342758524526189684047851262401e-1,
-        8.64864423359769072789712788640926201211e-1,
-        7.41531185599394439863864773280788407074e-1,
-        5.86087235467691130294144838258729598437e-1,
-        4.05845151377397166906606412076961463347e-1,
-        2.07784955007898467600689403773244913480e-1,
-        0.00000000000000000000000000000000000000
+        0.991455371120812639206854697526329,
+        0.949107912342758524526189684047851,
+        0.864864423359769072789712788640926,
+        0.741531185599394439863864773280788,
+        0.586087235467691130294144838258730,
+        0.405845151377397166906606412076961,
+        0.207784955007898467600689403773245,
+        0.000000000000000000000000000000000
     };
     const double wgk[8] = {
-        2.29353220105292249637320080589695919936e-2,
-        6.30920926299785532907006631892042866651e-2,
-        1.04790010322250183839876322541518017444e-1,
-        1.40653259715525918745189590510237920400e-1,
-        1.69004726639267902826583426598550284106e-1,
-        1.90350578064785409913256402421013682826e-1,
-        2.04432940075298892414161999234649084717e-1,
-        2.09482141084727828012999174891714263698e-1
+        0.022935322010529224963732008058970,
+        0.063092092629978553290700663189204,
+        0.104790010322250183839876322541518,
+        0.140653259715525918745189590510238,
+        0.169004726639267902826583426598550,
+        0.190350578064785409913256402421014,
+        0.204432940075298892414161999234649,
+        0.209482141084727828012999174891714
     };
     // first executable statement  dqk15i
     epmach = ARRAYF(d1mach, 4);
     uflow  = ARRAYF(d1mach, 1);
-    dinf   = std::max(1.0, double(inf));
+    dinf   = std::max(1.0, static_cast<double>(inf));
     //
     centr  = 0.5 * (a + b);
     hlgth  = 0.5 * (b - a);
     tabsc1 = boun + dinf * (1.0 - centr) / centr;
-    fval1  = f(tabsc1, data);
-    if(inf == 2) fval1 = fval1 + f(-tabsc1, data);
+    fval1  = f(tabsc1, user_data);
+    if (inf == 2) fval1 = fval1 + f(-tabsc1, user_data);
     fc     = (fval1 / centr) / centr;
     //
     // compute the 15-point kronrod approximation to
     // the integral, and estimate the error.
     //
-    resg   = ARRAYF(wg, 8)  * fc;
+    resg   = ARRAYF(wg,  8) * fc;
     resk   = ARRAYF(wgk, 8) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 7; ++j) {
@@ -3497,17 +3262,17 @@ void dqk15i(QUADPACK_CPP_FUNCTION f,
         absc2  = centr + absc;
         tabsc1 = boun + dinf * (1.0 - absc1) / absc1;
         tabsc2 = boun + dinf * (1.0 - absc2) / absc2;
-        fval1  = f(tabsc1, data);
-        fval2  = f(tabsc2, data);
-        if(inf == 2) fval1 = fval1 + f(-tabsc1, data);
-        if(inf == 2) fval2 = fval2 + f(-tabsc2, data);
+        fval1  = f(tabsc1, user_data);
+        fval2  = f(tabsc2, user_data);
+        if(inf == 2) fval1 = fval1 + f(-tabsc1, user_data);
+        if(inf == 2) fval2 = fval2 + f(-tabsc2, user_data);
         fval1  = (fval1 / absc1) / absc1;
         fval2  = (fval2 / absc2) / absc2;
         ARRAYF(fv1, j) = fval1;
         ARRAYF(fv2, j) = fval2;
-        fsum   = fval1 + fval2;
-        resg   = resg + ARRAYF(wg, j)  * fsum;
-        resk   = resk + ARRAYF(wgk, j) * fsum;
+        fsum   = fval1  + fval2;
+        resg   = resg   + ARRAYF(wg,  j) * fsum;
+        resk   = resk   + ARRAYF(wgk, j) * fsum;
         resabs = resabs + ARRAYF(wgk, j) * (std::abs(fval1) + std::abs(fval2));
     }
     reskh  = resk * 0.5;
@@ -3515,54 +3280,37 @@ void dqk15i(QUADPACK_CPP_FUNCTION f,
     for (j = 1; j <= 7; ++j) {
         resasc += ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk * hlgth;
+    result = resk   * hlgth;
     resabs = resabs * hlgth;
     resasc = resasc * hlgth;
     abserr = std::abs((resk - resg) * hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-void dqk15w(QUADPACK_CPP_FUNCTION f,
-            QUADPACK_CPP_WEIGHT_FUNCTION w,
-            const double p1,
-            const double p2,
-            const double p3,
-            const double p4,
-            const int kp,
-            const double a,
-            const double b,
-            double &result,
-            double &abserr,
-            double &resabs,
-            double &resasc,
-            void *data)
+void dqk15w(QUADPACK_CPP_FUNCTION f, QUADPACK_CPP_WEIGHT_FUNCTION w, const double p1, const double p2,
+            const double p3, const double p4, const int kp, const double a, const double b, double &result,
+            double &abserr, double &resabs, double &resasc, void *user_data)
 {
-    double absc1, absc2, dhlgth, fc, fsum, fv1[7], fv2[7];
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, absc1, absc2, centr, dhlgth, fc, fsum, fval1, fval2, hlgth;
+    double resg, resk, reskh;
+    double fv1[7], fv2[7];
     double epmach, uflow;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
     // corresponding weights are given.
-
+    //
     // xgk    - abscissae of the 15-point gauss-kronrod rule
     //          xgk(2), xgk(4), ... abscissae of the 7-point
     //          gauss rule
     //          xgk(1), xgk(3), ... abscissae which are optimally
     //          added to the 7-point gauss rule
-
+    //
     // wgk    - weights of the 15-point gauss-kronrod rule
-
+    //
     // wg     - weights of the 7-point gauss rule
     //
     const double xgk[8] = {
@@ -3573,7 +3321,7 @@ void dqk15w(QUADPACK_CPP_FUNCTION f,
         5.86087235467691130294144838258729598437e-1,
         4.05845151377397166906606412076961463347e-1,
         2.07784955007898467600689403773244913480e-1,
-        0.00000000000000000000000000000000000000
+        0.00000000000000000000000000000000000000000
     };
     const double wgk[8] = {
         2.29353220105292249637320080589695919936e-2,
@@ -3602,71 +3350,70 @@ void dqk15w(QUADPACK_CPP_FUNCTION f,
     // compute the 15-point kronrod approximation to the
     // integral, and estimate the error.
     //
-    fc = f(centr, data) * w(centr, p1, p2, p3, p4, kp);
+    fc   = f(centr, user_data) * w(centr, p1, p2, p3, p4, kp);
     resg = ARRAYF(wg,  4) * fc;
     resk = ARRAYF(wgk, 8) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 3; ++j) {
-        jtw = j*2;
-        absc = hlgth * ARRAYF(xgk, jtw); 
-        absc1 = centr - absc;
-        absc2 = centr + absc;
-        fval1 = f(absc1, data) * w(absc1, p1, p2, p3, p4, kp);
-        fval2 = f(absc2, data) * w(absc2, p1, p2, p3, p4, kp);
+        jtw    = j*2;
+        absc   = hlgth * ARRAYF(xgk, jtw); 
+        absc1  = centr - absc;
+        absc2  = centr + absc;
+        fval1  = f(absc1, user_data) * w(absc1, p1, p2, p3, p4, kp);
+        fval2  = f(absc2, user_data) * w(absc2, p1, p2, p3, p4, kp);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
-        fsum = fval1 + fval2;
-        resg = resg + ARRAYF(wg,    j)*fsum;
-        resk = resk + ARRAYF(wgk, jtw)*fsum;
-        resabs = resabs + ARRAYF(wgk, jtw)*(std::abs(fval1) + std::abs(fval2));
+        fsum   = fval1  + fval2;
+        resg   = resg   + ARRAYF(wg,    j) * fsum;
+        resk   = resk   + ARRAYF(wgk, jtw) * fsum;
+        resabs = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 4; ++j) {
-        jtwm1 = j*2 - 1;
-        absc  = hlgth * ARRAYF(xgk, jtwm1);
-        absc1 = centr - absc;
-        absc2 = centr + absc;
-        fval1 = f(absc1, data) * w(absc1, p1, p2, p3, p4, kp);
-        fval2 = f(absc2, data) * w(absc2, p1, p2, p3, p4, kp);
+        jtwm1  = j*2 - 1;
+        absc   = hlgth * ARRAYF(xgk, jtwm1);
+        absc1  = centr - absc;
+        absc2  = centr + absc;
+        fval1  = f(absc1, user_data) * w(absc1, p1, p2, p3, p4, kp);
+        fval2  = f(absc2, user_data) * w(absc2, p1, p2, p3, p4, kp);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
-        fsum = fval1 + fval2;
-        resk = resk + ARRAYF(wgk, jtwm1)*fsum;
-        resabs = resabs + ARRAYF(wgk, jtwm1)*(std::abs(fval1) + std::abs(fval2));
+        fsum   = fval1  + fval2;
+        resk   = resk   + ARRAYF(wgk, jtwm1) * fsum;
+        resabs = resabs + ARRAYF(wgk, jtwm1) * (std::abs(fval1) + std::abs(fval2));
     }
-    reskh = resk*0.5;
+    reskh = resk * 0.5;
     resasc = ARRAYF(wgk, 8) * std::abs(fc - reskh);
     for (j = 1; j <= 7; ++j) {
-        resasc = resasc + ARRAYF(wgk, j)*(std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
+        resasc = resasc + ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk*hlgth;
-    resabs = resabs*dhlgth;
-    resasc = resasc*dhlgth;
-    abserr = std::abs((resk - resg)*hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc*std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    result = resk   * hlgth;
+    resabs = resabs * dhlgth;
+    resasc = resasc * dhlgth;
+    abserr = std::abs((resk - resg) * hlgth);
+    if (resasc != 0.0 && abserr != 0.0)   abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-void dqk21(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           double &result,
-           double &abserr,
-           double &resabs,
-           double &resasc,
-           void *data)
+void dqk21(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data)
 {
-    double dhlgth, fc, fsum, fv1[10], fv2[10];
-    double uflow, epmach;
+    // double dhlgth, fc, fsum, fv1[10], fv2[10];
+    // double uflow, epmach;
+    // int j, jtw, jtwm1;
+    // double centr;
+    // double hlgth;
+    // double absc;
+    // double fval1;
+    // double fval2;
+    // double resg;
+    // double resk;
+    // double reskh;
+
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, centr, dhlgth, fc, fsum, fval1, fval2, hlgth, resg, resk, reskh;
+    double fv1[10], fv2[10];
+    double uflow, epmach;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
@@ -3705,7 +3452,7 @@ void dqk21(QUADPACK_CPP_FUNCTION f,
         4.33395394129247190799265943165784162200e-1,
         2.94392862701460198131126603103865566163e-1,
         1.48874338981631210884826001129719984618e-1,
-        0.00000000000000000000000000000000000000
+        0.00000000000000000000000000000000000000000
     };
     const double wgk[11] = {
         1.16946388673718742780643960621920483962e-2,
@@ -3732,30 +3479,30 @@ void dqk21(QUADPACK_CPP_FUNCTION f,
     // the integral, and estimate the absolute error.
     //
     resg   = 0.0;
-    fc     = f(centr, data);
+    fc     = f(centr, user_data);
     resk   = ARRAYF(wgk, 11) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 5; ++j) {
         jtw              = 2*j;
         absc             = hlgth * ARRAYF(xgk, jtw);
-        fval1            = f(centr - absc, data);
-        fval2            = f(centr + absc, data);
+        fval1            = f(centr - absc, user_data);
+        fval2            = f(centr + absc, user_data);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
         fsum             = fval1 + fval2;
-        resg             = resg + ARRAYF(wg, j) * fsum;
+        resg             = resg + ARRAYF(wg,    j) * fsum;
         resk             = resk + ARRAYF(wgk, jtw) * fsum;
         resabs           = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 5; ++j) {
         jtwm1      = 2*j - 1;
         absc       = hlgth * ARRAYF(xgk, jtwm1);
-        fval1      = f(centr - absc, data);
-        fval2      = f(centr + absc, data);
+        fval1      = f(centr - absc, user_data);
+        fval2      = f(centr + absc, user_data);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
         fsum       = fval1 + fval2;
-        resk       = resk + ARRAYF(wgk, jtwm1) * fsum;
+        resk       = resk   + ARRAYF(wgk, jtwm1) * fsum;
         resabs     = resabs + ARRAYF(wgk, jtwm1) * (std::abs(fval1) + std::abs(fval2));
     }
     reskh  = resk * 0.5;
@@ -3767,32 +3514,18 @@ void dqk21(QUADPACK_CPP_FUNCTION f,
     resabs = resabs * dhlgth;
     resasc = resasc * dhlgth;
     abserr = std::abs((resk - resg) * hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-
-void dqk31(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           double &result,
-           double &abserr,
-           double &resabs,
-           double &resasc,
-           void *data)
+void dqk31(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data)
 {
-    double dhlgth, fc, fsum, fv1[15], fv2[15];
-    double uflow, epmach;
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, centr, dhlgth, fc, fsum, fval1, fval2, hlgth, resg, resk, reskh;
+    double fv1[15], fv2[15];
+    double uflow, epmach;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
@@ -3839,7 +3572,7 @@ void dqk31(QUADPACK_CPP_FUNCTION f,
         2.99180007153168812166780024266388962662e-1,
         2.01194093997434522300628303394596207813e-1,
         1.01142066918717499027074231447392338787e-1,
-        0.00000000000000000000000000000000000000
+        0.00000000000000000000000000000000000000000
     };
     const double wgk[16] = {
         5.37747987292334898779205143012764981831e-3,
@@ -3870,27 +3603,27 @@ void dqk31(QUADPACK_CPP_FUNCTION f,
     // compute the 31-point kronrod approximation to
     // the integral, and estimate the absolute error.
     //
-    fc     = f(centr, data);
-    resg   = ARRAYF(wg, 8) * fc;
+    fc     = f(centr, user_data);
+    resg   = ARRAYF(wg,   8) * fc;
     resk   = ARRAYF(wgk, 16) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 7; ++j) {
         jtw              = 2*j;
         absc             = hlgth * ARRAYF(xgk, jtw);
-        fval1            = f(centr - absc, data);
-        fval2            = f(centr + absc, data);
+        fval1            = f(centr - absc, user_data);
+        fval2            = f(centr + absc, user_data);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
         fsum             = fval1 + fval2;
-        resg             = resg + ARRAYF(wg, j) * fsum;
+        resg             = resg + ARRAYF(wg,    j) * fsum;
         resk             = resk + ARRAYF(wgk, jtw) * fsum;
         resabs           = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 8; ++j) {
         jtwm1      = 2*j - 1;
         absc       = hlgth * ARRAYF(xgk, jtwm1);
-        fval1      = f(centr - absc, data);
-        fval2      = f(centr + absc, data);
+        fval1      = f(centr - absc, user_data);
+        fval2      = f(centr + absc, user_data);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
         fsum       = fval1 + fval2;
@@ -3902,35 +3635,22 @@ void dqk31(QUADPACK_CPP_FUNCTION f,
     for (j = 1; j <= 15; ++j) {
         resasc += ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk * hlgth;
+    result = resk   * hlgth;
     resabs = resabs * dhlgth;
     resasc = resasc * dhlgth;
     abserr = std::abs((resk - resg) * hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-void dqk41(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           double &result,
-           double &abserr,
-           double &resabs,
-           double &resasc,
-           void *data)
+void dqk41(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data)
 {
-    double dhlgth, fc, fsum, fv1[20], fv2[20];
-    double uflow, epmach;
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, centr, dhlgth, fc, fsum, fval1, fval2, hlgth, resg, resk, reskh;
+    double fv1[20], fv2[20];
+    double uflow, epmach;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
@@ -3984,7 +3704,7 @@ void dqk41(QUADPACK_CPP_FUNCTION f,
         2.27785851141645078080496195368574624743e-1,
         1.52605465240922675505220241022677527912e-1,
         7.65265211334973337546404093988382110048e-2,
-        0.00000000000000000000000000000000000000e0
+        0.00000000000000000000000000000000000000000
     };
     const double wgk[21] = {
         3.07358371852053150121829324603098748803e-3,
@@ -4021,30 +3741,30 @@ void dqk41(QUADPACK_CPP_FUNCTION f,
     // the integral, and estimate the absolute error.
     //
     resg   = 0.0;
-    fc     = f(centr, data);
+    fc     = f(centr, user_data);
     resk   = ARRAYF(wgk, 21) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 10; ++j) {
         jtw              = 2*j;
         absc             = hlgth * ARRAYF(xgk, jtw);
-        fval1            = f(centr - absc, data);
-        fval2            = f(centr + absc, data);
+        fval1            = f(centr - absc, user_data);
+        fval2            = f(centr + absc, user_data);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
         fsum             = fval1 + fval2;
-        resg             = resg + ARRAYF(wg, j) * fsum;
+        resg             = resg + ARRAYF(wg,    j) * fsum;
         resk             = resk + ARRAYF(wgk, jtw) * fsum;
         resabs           = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 10; ++j) {
         jtwm1              = 2*j - 1;
         absc               = hlgth * ARRAYF(xgk, jtwm1);
-        fval1              = f(centr - absc, data);
-        fval2              = f(centr + absc, data);
+        fval1              = f(centr - absc, user_data);
+        fval2              = f(centr + absc, user_data);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
         fsum               = fval1 + fval2;
-        resk               = resk + ARRAYF(wgk, jtwm1) * fsum;
+        resk               = resk   + ARRAYF(wgk, jtwm1) * fsum;
         resabs             = resabs + ARRAYF(wgk, jtwm1) * (std::abs(fval1) + std::abs(fval2));
     }
     reskh  = resk * 0.5;
@@ -4052,35 +3772,22 @@ void dqk41(QUADPACK_CPP_FUNCTION f,
     for (j = 1; j <= 20; ++j) {
         resasc += ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk * hlgth;
+    result = resk   * hlgth;
     resabs = resabs * dhlgth;
     resasc = resasc * dhlgth;
     abserr = std::abs((resk - resg) * hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-void dqk51(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           double &result,
-           double &abserr,
-           double &resabs,
-           double &resasc,
-           void *data)
+void dqk51(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data)
 {
-    double dhlgth, fc, fsum, fv1[25], fv2[25];
-    double uflow, epmach;
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, centr, dhlgth, fc, fsum, fval1, fval2, hlgth, resg, resk, reskh;
+    double fv1[25], fv2[25];
+    double uflow, epmach;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
@@ -4142,7 +3849,7 @@ void dqk51(QUADPACK_CPP_FUNCTION f,
         1.83718939421048892015969888759528415785e-1,
         1.22864692610710396387359818808036805532e-1,
         6.15444830056850788865463923667966312817e-2,
-        0.00000000000000000000000000000000000000e0 
+        0.00000000000000000000000000000000000000000
     };
     const double wgk[26] = {
         1.98738389233031592650785188284340988943e-3,
@@ -4183,27 +3890,27 @@ void dqk51(QUADPACK_CPP_FUNCTION f,
     // compute the 51-point kronrod approximation to
     // the integral, and estimate the absolute error.
     //
-    fc     = f(centr, data);
+    fc     = f(centr, user_data);
     resg   = ARRAYF(wg, 13) * fc;
     resk   = ARRAYF(wgk, 26) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 12; ++j) {
         jtw              = 2*j;
         absc             = hlgth * ARRAYF(xgk, jtw);
-        fval1            = f(centr - absc, data);
-        fval2            = f(centr + absc, data);
+        fval1            = f(centr - absc, user_data);
+        fval2            = f(centr + absc, user_data);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
         fsum             = fval1 + fval2;
-        resg             = resg + ARRAYF(wg, j) * fsum;
+        resg             = resg + ARRAYF(wg,    j) * fsum;
         resk             = resk + ARRAYF(wgk, jtw) * fsum;
         resabs           = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 13; ++j) {
         jtwm1              = 2*j - 1;
         absc               = hlgth * ARRAYF(xgk, jtwm1);
-        fval1              = f(centr - absc, data);
-        fval2              = f(centr + absc, data);
+        fval1              = f(centr - absc, user_data);
+        fval2              = f(centr + absc, user_data);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
         fsum               = fval1 + fval2;
@@ -4215,35 +3922,22 @@ void dqk51(QUADPACK_CPP_FUNCTION f,
     for (j = 1; j <= 25; ++j) {
         resasc += ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk * hlgth;
+    result = resk   * hlgth;
     resabs = resabs * dhlgth;
     resasc = resasc * dhlgth;
     abserr = std::abs((resk - resg) * hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-void dqk61(QUADPACK_CPP_FUNCTION f,
-           const double a,
-           const double b,
-           double &result,
-           double &abserr,
-           double &resabs,
-           double &resasc,
-           void *data)
+void dqk61(QUADPACK_CPP_FUNCTION f, const double a, const double b, double &result, double &abserr,
+           double &resabs, double &resasc, void *user_data)
 {
-    double dhlgth, fc, fsum, fv1[30], fv2[30];
-    double uflow, epmach;
     int j, jtw, jtwm1;
-    double centr;
-    double hlgth;
-    double absc;
-    double fval1;
-    double fval2;
-    double resg;
-    double resk;
-    double reskh;
+    double absc, centr, dhlgth, fc, fsum, fval1, fval2, hlgth, resg, resk, reskh;
+    double fv1[30], fv2[30];
+    double uflow, epmach;
     //
     // the abscissae and weights are given for the interval (-1,1).
     // because of symmetry only the positive abscissae and their
@@ -4358,26 +4052,26 @@ void dqk61(QUADPACK_CPP_FUNCTION f,
     // the integral, and estimate the absolute error.
     //
     resg   = 0.0;
-    fc     = f(centr, data);
+    fc     = f(centr, user_data);
     resk   = ARRAYF(wgk, 31) * fc;
     resabs = std::abs(resk);
     for (j = 1; j <= 15; ++j) {
         jtw              = 2*j;
         absc             = hlgth * ARRAYF(xgk, jtw);
-        fval1            = f(centr - absc, data);
-        fval2            = f(centr + absc, data);
+        fval1            = f(centr - absc, user_data);
+        fval2            = f(centr + absc, user_data);
         ARRAYF(fv1, jtw) = fval1;
         ARRAYF(fv2, jtw) = fval2;
         fsum             = fval1 + fval2;
-        resg             = resg + ARRAYF(wg, j) * fsum;
+        resg             = resg + ARRAYF(wg,    j) * fsum;
         resk             = resk + ARRAYF(wgk, jtw) * fsum;
         resabs           = resabs + ARRAYF(wgk, jtw) * (std::abs(fval1) + std::abs(fval2));
     }
     for (j = 1; j <= 15; ++j) {
         jtwm1              = 2*j - 1;
         absc               = hlgth * ARRAYF(xgk, jtwm1);
-        fval1              = f(centr - absc, data);
-        fval2              = f(centr + absc, data);
+        fval1              = f(centr - absc, user_data);
+        fval2              = f(centr + absc, user_data);
         ARRAYF(fv1, jtwm1) = fval1;
         ARRAYF(fv2, jtwm1) = fval2;
         fsum               = fval1 + fval2;
@@ -4389,22 +4083,16 @@ void dqk61(QUADPACK_CPP_FUNCTION f,
     for (j = 1; j <= 30; ++j) {
         resasc += ARRAYF(wgk, j) * (std::abs(ARRAYF(fv1, j) - reskh) + std::abs(ARRAYF(fv2, j) - reskh));
     }
-    result = resk * hlgth;
+    result = resk   * hlgth;
     resabs = resabs * dhlgth;
     resasc = resasc * dhlgth;
     abserr = std::abs((resk - resg) * hlgth);
-    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-    if (resabs > uflow/(50.0*epmach)) abserr = std::max((epmach*50.0)*resabs, abserr);
+    if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+    if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
     return;
 }
 
-void dqmomo(const double alfa,
-            const double beta,
-            double *ri,
-            double *rj,
-            double *rg,
-            double *rh,
-            const int integr)
+void dqmomo(const double alfa, const double beta, double *ri, double *rj, double *rg, double *rh, const int integr)
 {
     double alfp1, alfp2, an, anm1, betp1, betp2, ralf, rbet;
     int i, im1;
@@ -4431,8 +4119,8 @@ void dqmomo(const double alfa,
         anm1          = an;
         an            = an + 1.0;
     }
-    if (integr == 1) goto label_70;
-    if (integr == 3) goto label_40;
+    if (integr == 1) goto LABEL_70;
+    if (integr == 3) goto LABEL_40;
     //
     // compute rg using a forward recurrence relation.
     //
@@ -4447,11 +4135,11 @@ void dqmomo(const double alfa,
         an           += 1.0;
         im1           = i;
     }
-    if (integr == 2) goto label_70;
+    if (integr == 2) goto LABEL_70;
     //
     // compute rh using a forward recurrence relation.
     //
-    label_40:
+LABEL_40:
     ARRAYF(rh, 1) = -ARRAYF(rj, 1) / betp1;
     ARRAYF(rh, 2) = -(rbet + rbet) / (betp2 * betp2) - ARRAYF(rh, 1);
     an            = 2.0;
@@ -4466,39 +4154,37 @@ void dqmomo(const double alfa,
     for (i = 2; i <= 25; i += 2) {
         ARRAYF(rh, i) = -ARRAYF(rh, i);
     }
-    label_70:
+LABEL_70:
     for (i = 2; i <= 25; i += 2) {
         ARRAYF(rj, i) = -ARRAYF(rj, i);
     }
-    label_90:
+LABEL_90:
     return;
 }
 
-void dqng(QUADPACK_CPP_FUNCTION f,
-          const double a,
-          const double b,
-          const double epsabs,
-          const double epsrel,
-          double &result,
-          double &abserr,
-          int &neval,
-          int &ier,
-          void *data)
+void dqng(QUADPACK_CPP_FUNCTION f, const double a, const double b, const double epsabs, const double epsrel,
+          double &result, double &abserr, int &neval, int &ier, void *user_data)
 {
-    double dhlgth, fval1, fval2, fv1[5], fv2[5], fv3[5], fv4[5], reskh;
+    // double dhlgth, fval1, fval2, fv1[5], fv2[5], fv3[5], fv4[5], reskh;
+    // int ipx, k, l;
+    // double centr;
+    // double hlgth;
+    // double fcentr;
+    // double absc;
+    // double fval;
+    // double savfun[21];
+    // double res10;
+    // double res21;
+    // double res43;
+    // double res87;
+    // double resabs;
+    // double resasc;
+    // double epmach, uflow;
+    // std::string messg;
     int ipx, k, l;
-    double centr;
-    double hlgth;
-    double fcentr;
-    double absc;
-    double fval;
-    double savfun[21];
-    double res10;
-    double res21;
-    double res43;
-    double res87;
-    double resabs;
-    double resasc;
+    double fv1[5], fv2[5], fv3[5], fv4[5], savfun[21];
+    double absc, centr, dhlgth, fcentr, fval, fval1, fval2, hlgth;
+    double res10, res21, res43, res87, resabs, resasc, reskh;
     double epmach, uflow;
     std::string messg;
     //
@@ -4682,31 +4368,31 @@ void dqng(QUADPACK_CPP_FUNCTION f,
     abserr = 0.0;
     neval  = 0;
     ier    = 6;
-    if (epsabs <= 0.0 && epsrel < std::max(50.0*epmach, 5.0e-29)) goto label_80;
+    if (epsabs <= 0.0 && epsrel < std::max(50.0 * epmach, 5.0e-29)) goto LABEL_80;
     hlgth  = 0.5 * (b - a);
     dhlgth = std::abs(hlgth);
     centr  = 0.5 * (b + a);
-    fcentr = f(centr, data);
+    fcentr = f(centr, user_data);
     neval  = 21;
     ier    = 1;
     //
     // compute the integral using the 10- and 21-point formula.
     //
     for (l = 1; l <= 3; ++l) {
-        if (l == 1) goto label_5;
-        if (l == 2) goto label_25;
-        if (l == 3) goto label_45;
-        label_5:
+        if (l == 1) goto LABEL_5;
+        if (l == 2) goto LABEL_25;
+        if (l == 3) goto LABEL_45;
+LABEL_5:
         res10  = 0.0;
         res21  = ARRAYF(w21b, 6) * fcentr;
         resabs = ARRAYF(w21b, 6) * std::abs(fcentr);
         for (k = 1; k <= 5; ++k) {
             absc = hlgth * ARRAYF(x1, k);
-            fval1             = f(centr + absc, data);
-            fval2             = f(centr - absc, data);
+            fval1             = f(centr + absc, user_data);
+            fval2             = f(centr - absc, user_data);
             fval              = fval1 + fval2;
-            res10             = res10 + ARRAYF( w10, k) * fval;
-            res21             = res21 + ARRAYF(w21a, k) * fval;
+            res10             = res10  + ARRAYF( w10, k) * fval;
+            res21             = res21  + ARRAYF(w21a, k) * fval;
             resabs            = resabs + ARRAYF(w21a, k) * (std::abs(fval1) + std::abs(fval2));
             ARRAYF(savfun, k) = fval;
             ARRAYF(   fv1, k) = fval1;
@@ -4716,8 +4402,8 @@ void dqng(QUADPACK_CPP_FUNCTION f,
         for (k = 1; k <= 5; ++k) {
             ipx                 = ipx + 1;
             absc                = hlgth * ARRAYF(x2, k);
-            fval1               = f(centr + absc, data);
-            fval2               = f(centr - absc, data);
+            fval1               = f(centr + absc, user_data);
+            fval2               = f(centr - absc, user_data);
             fval                = fval1 + fval2;
             res21               = res21 + ARRAYF(w21b, k) * fval;
             resabs              = resabs + ARRAYF(w21b, k) * (std::abs(fval1) + std::abs(fval2));
@@ -4728,7 +4414,7 @@ void dqng(QUADPACK_CPP_FUNCTION f,
         //
         // test for convergence.
         //
-        result = res21 * hlgth;
+        result = res21  * hlgth;
         resabs = resabs * dhlgth;
         reskh  = 0.5 * res21;
         resasc = ARRAYF(w21b, 6) * std::abs(fcentr - reskh);
@@ -4738,11 +4424,11 @@ void dqng(QUADPACK_CPP_FUNCTION f,
         }
         abserr = std::abs((res21 - res10) * hlgth);
         resasc = resasc * dhlgth;
-        goto label_65;
+        goto LABEL_65;
         //
         // compute the integral using the 43-point formula.
         //
-        label_25:
+LABEL_25:
         res43 = ARRAYF(w43b, 12) * fcentr;
         neval = 43;
         for (k = 1; k <= 10; ++k) {
@@ -4751,7 +4437,7 @@ void dqng(QUADPACK_CPP_FUNCTION f,
         for (k = 1; k <= 11; ++k) {
             ipx                 = ipx + 1;
             absc                = hlgth * ARRAYF(x3, k);
-            fval                = f(absc + centr, data) + f(centr - absc, data);
+            fval                = f(absc + centr, user_data) + f(centr - absc, user_data);
             res43               = res43 + fval * ARRAYF(w43b, k);
             ARRAYF(savfun, ipx) = fval;
         }
@@ -4760,11 +4446,11 @@ void dqng(QUADPACK_CPP_FUNCTION f,
         //
         result = res43 * hlgth;
         abserr = std::abs((res43 - res21) * hlgth);
-        goto label_65;
+        goto LABEL_65;
         //
         // compute the integral using the 87-point formula.
         //
-        label_45:
+LABEL_45:
         res87 = ARRAYF(w87b, 23) * fcentr;
         neval = 87;
         for (k = 1; k <= 21; ++k) {
@@ -4772,31 +4458,25 @@ void dqng(QUADPACK_CPP_FUNCTION f,
         }
         for (k = 1; k <= 22; ++k) {
             absc  = hlgth * ARRAYF(x4, k);
-            res87 = res87 + ARRAYF(w87b, k) * (f(absc + centr, data) + f(centr - absc, data));
+            res87 = res87 + ARRAYF(w87b, k) * (f(absc + centr, user_data) + f(centr - absc, user_data));
         }
         result = res87 * hlgth;
         abserr = std::abs((res87 - res43) * hlgth);
-        label_65:
-        if (resasc != 0.0 && abserr != 0.0) abserr = resasc * std::min(1.0, std::pow(2.0e2*abserr/resasc, 1.5));
-        if (resabs > uflow/(50.0*epmach)) abserr = std::max(epmach*50.0*resabs, abserr);
-        if (abserr <= std::max(epsabs, epsrel*std::abs(result))) ier = 0;
+LABEL_65:
+        if (resasc != 0.0 && abserr != 0.0)   abserr = resasc * std::min(1.0, std::pow(2.0e2 * abserr / resasc, 1.5));
+        if (resabs > uflow / (50.0 * epmach)) abserr = std::max(50.0 * epmach * resabs, abserr);
+        if (abserr <= std::max(epsabs, epsrel * std::abs(result))) ier = 0;
         // jump out of for-loop
-        if (ier == 0) goto label_999;
+        if (ier == 0) goto LABEL_999;
     }
-    label_80:
+LABEL_80:
     messg = "abnormal return from dqng";
     xerror(messg, ier, 0);
-    label_999:
+LABEL_999:
     return;
 }
 
-void dqpsrt(const int limit,
-            const int last,
-            int &maxerr,
-            double &ermax,
-            const double *elist,
-            int *iord,
-            int &nrmax)
+void dqpsrt(const int limit, const int last, int &maxerr, double &ermax, const double *elist, int *iord, int &nrmax)
 {
     double errmax, errmin;
     int i, ibeg, ido, isucc, j, jbnd, jupbn, k;
@@ -4805,35 +4485,35 @@ void dqpsrt(const int limit,
     // two error estimates.
     //
     // first executable statement  dqpsrt
-    if (last > 2) goto label_10;
+    if (last > 2) goto LABEL_10;
     ARRAYF(iord, 1) = 1;
     ARRAYF(iord, 2) = 2;
-    goto label_90;
+    goto LABEL_90;
     //
     // this part of the routine is only executed if, due to a
     // difficult integrand, subdivision increased the error
     // estimate. in the normal case the insert procedure should
     // start after the nrmax-th largest error estimate.
     //
-    label_10:
+LABEL_10:
     errmax = ARRAYF(elist, maxerr);
-    if (nrmax == 1) goto label_30;
+    if (nrmax == 1) goto LABEL_30;
     ido = nrmax - 1;
     for (i = 1; i <= ido; ++i) {
         isucc = ARRAYF(iord, nrmax-1);
         // jump out of do-loop
-        if (errmax <= ARRAYF(elist, isucc)) goto label_30;
+        if (errmax <= ARRAYF(elist, isucc)) goto LABEL_30;
         ARRAYF(iord, nrmax) = isucc;
-        nrmax -= 1;
+        nrmax--;
     }
     //
     // compute the number of elements in the list to be maintained
     // in descending order. this number depends on the number of
     // subdivisions still allowed.
     //
-    label_30:
+LABEL_30:
     jupbn = last;
-    if (last > (limit/2 + 2)) jupbn = limit + 3 - last;
+    if (last > (limit / 2 + 2)) jupbn = limit + 3 - last;
     errmin = ARRAYF(elist, last);
     //
     // insert errmax by traversing the list top-down,
@@ -4841,59 +4521,49 @@ void dqpsrt(const int limit,
     // 
     jbnd = jupbn - 1;
     ibeg = nrmax + 1;
-    if (ibeg > jbnd) goto label_50;
+    if (ibeg > jbnd) goto LABEL_50;
     for (i = ibeg; i <= jbnd; ++i) {
         isucc = ARRAYF(iord, i);
         // jump out of for-loop
-        if(errmax >= ARRAYF(elist, isucc)) goto label_60;
+        if(errmax >= ARRAYF(elist, isucc)) goto LABEL_60;
         ARRAYF(iord, i-1) = isucc;
     }
-    label_50:
+LABEL_50:
     ARRAYF(iord, jbnd)  = maxerr;
     ARRAYF(iord, jupbn) = last;
-    goto label_90;
+    goto LABEL_90;
     //
     // insert errmin by traversing the list bottom-up.
     //
-    label_60:
+LABEL_60:
     ARRAYF(iord, i-1) = maxerr;
     k = jbnd;
     for (j = i; j <= jbnd; ++j) {
         isucc = ARRAYF(iord, k);
         // jump out of for-loop
-        if (errmin < ARRAYF(elist, isucc)) goto label_80;
+        if (errmin < ARRAYF(elist, isucc)) goto LABEL_80;
         ARRAYF(iord, k+1) = isucc;
-        k -= 1;
+        k--;
     }
     ARRAYF(iord, i) = last;
-    goto label_90;
-    label_80:
+    goto LABEL_90;
+LABEL_80:
     ARRAYF(iord, k+1) = last;
     //
     // set maxerr and ermax.
     //
-    label_90:
-    maxerr = ARRAYF(iord, nrmax);
+LABEL_90:
+    maxerr = ARRAYF(iord,   nrmax);
     ermax  = ARRAYF(elist, maxerr);
     return;
 }
 
-double dqwgtc(const double x,
-              const double c,
-              const double p2,
-              const double p3,
-              const double p4,
-              const int kp)
+double dqwgtc(const double x, const double c, const double p2, const double p3, const double p4, const int kp)
 {
     return 1.0 / (x - c);
 }
 
-double dqwgtf(const double x,
-              const double omega,
-              const double p2,
-              const double p3,
-              const double p4,
-              const int integr)
+double dqwgtf(const double x, const double omega, const double p2, const double p3, const double p4, const int integr)
 {
     double omx;
     // first executable statement  dqwgtf
@@ -4907,12 +4577,7 @@ double dqwgtf(const double x,
     }
 }
 
-double dqwgts(const double x,
-              const double a,
-              const double b,
-              const double alfa,
-              const double beta,
-              const int integr)
+double dqwgts(const double x, const double a, const double b, const double alfa, const double beta, const int integr)
 {
     double xma = x - a;
     double bmx = b - x;
@@ -4920,22 +4585,20 @@ double dqwgts(const double x,
 
     switch (integr)
     {
-    case 1:
-        return coef_dqwgts;
-    case 2:
-        return coef_dqwgts * std::log(xma);
-    case 3:
-        return coef_dqwgts * std::log(bmx);
-    case 4:
-        return coef_dqwgts * std::log(xma) * std::log(bmx);
-    default:
-        return 0.0;
+        case 1:
+            return coef_dqwgts;
+        case 2:
+            return coef_dqwgts * std::log(xma);
+        case 3:
+            return coef_dqwgts * std::log(bmx);
+        case 4:
+            return coef_dqwgts * std::log(xma) * std::log(bmx);
+        default:
+            return 0.0;
     }
 }
 
-void xerror(const std::string messg, 
-            const int nerr, 
-            const int level)
+void xerror(const std::string messg, const int nerr, const int level)
 {
     std::cerr << nerr << " " << messg << std::endl;
     if (level == 2) std::exit(1);
